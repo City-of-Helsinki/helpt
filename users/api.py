@@ -28,3 +28,10 @@ class UserSerializer(serializers.DynamicModelSerializer):
 class UserViewSet(viewsets.DynamicModelViewSet):
     queryset = User.objects.all()
     serializer_class = UserSerializer
+
+    def get_queryset(self):
+        queryset = super(UserViewSet, self).get_queryset()
+        filters = self.request.query_params
+        if 'current' in filters:
+            queryset = User.objects.filter(pk=self.request.user.pk)
+        return queryset
