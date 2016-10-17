@@ -3,9 +3,11 @@ from .sync import ModelSyncher
 
 import requests
 import requests_cache
+import logging
 
 requests_cache.install_cache('github')
 
+logger = logging.getLogger(__name__)
 
 class GitHubAdapter(Adapter):
     API_BASE = 'https://api.github.com/'
@@ -38,7 +40,7 @@ class GitHubAdapter(Adapter):
 
         :param obj: Task object that should be updated
         :param task: Github issue structure, as used in Github APIs
-        :param users_by_id: List of local users for task assigment
+        :param users_by_id: List of local users for task assignment
         """
         obj.name = task['title']
         for f in ['created_at', 'updated_at', 'closed_at']:
@@ -63,15 +65,20 @@ class GitHubAdapter(Adapter):
         if remove_assignees:
             obj.assignments.filter(user__in=remove_assignees).delete()
 
-        print('#{}: [{}] {}'.format(task['number'], task['state'], task['title']))
+        logger.debug('#{}: [{}] {}'.format(task['number'], task['state'], task['title']))
 
     def _get_users_by_id(self):
         data_source_users = self.data_source.data_source_users.all()
         return {int(u.origin_id): u.user for u in data_source_users}
 
     def sync_tasks(self, workspace):
+        """
+        Synchronize tasks between given workspace and its GitHub source
+        :param workspace: Workspace to be synced
+        """
+
         def close_task(task):
-            print("Marking %s closed" % task)
+            logger.debug("Marking %s closed" % task)
             task.set_state('closed')
 
         data = self.api_get('repos/{}/issues'.format(workspace.origin_id))
@@ -93,25 +100,3 @@ class GitHubAdapter(Adapter):
             self.update_task(obj, task, users_by_id)
 
         syncher.finish()
-
-    def get_task_identifier(self, event):
-        """
-        Return identifier from a Github event structure
-
-        :param event: Github event structure
-        :return: Identifier for the task, or None if event does not pertain to task
-        """
-        if 'issue' in event:
-            return event['issue']['number']
-        else:
-            return None
-
-    def accept_task(self, obj, event):
-        """
-        Update Task object from Github issue
-
-        :param obj: Task that should be updated
-        :param Event: Github issue structure, as used in Github APIs
-        """
-        users_by_id = self._get_users_by_id()
-        self.update_task(obj, event['issue'], users_by_id)

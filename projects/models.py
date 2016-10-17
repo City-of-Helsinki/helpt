@@ -87,20 +87,6 @@ class Workspace(models.Model):
     def __str__(self):
         return self.name
 
-    def accept_this_task(self, event):
-        adapter = self.data_source.adapter
-        task_id = adapter.get_task_identifier(event)
-
-        if task_id:
-            try:
-                task = self.tasks.get(origin_id=task_id)
-            except Task.DoesNotExist:
-                task = Task(workspace=self, origin_id=task_id)
-        else:
-            return None
-
-        adapter.accept_task(task, event)
-
     def sync_tasks(self):
         adapter = self.data_source.adapter
         adapter.sync_tasks(self)
