@@ -69,8 +69,7 @@ class Project(models.Model):
 
 class ProjectUser(models.Model):
     project = models.ForeignKey(Project, db_index=True, related_name='users')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, db_index=True,
-                             related_name='projects')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, db_index=True, related_name='projects')
 
     def __str__(self):
         return "{} on {}".format(self.user, self.project)
@@ -110,7 +109,7 @@ class Task(models.Model):
         (STATE_CLOSED, 'closed')
     )
 
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=200)
     workspace = models.ForeignKey(Workspace, db_index=True, related_name='tasks')
     origin_id = models.CharField(max_length=100, db_index=True)
     state = models.CharField(max_length=10, choices=STATES, db_index=True)
@@ -129,12 +128,19 @@ class Task(models.Model):
         return "{} ({})".format(self.name, self.workspace)
 
     def set_state(self, new_state):
+        """
+        Set the state of this task, verifying valid values
+
+        :param new_state: Requested state for this task
+        """
         if new_state == self.state:
             return
 
         assert new_state in [x[0] for x in self.STATES]
         self.state = new_state
-        self.save(update_fields=['state'])
+        # FIXME, inquire why the model is saved here
+        # (update_fields precludes using this for new models)
+#        self.save(update_fields=['state'])
 
     class Meta:
         ordering = ['workspace', 'origin_id']
