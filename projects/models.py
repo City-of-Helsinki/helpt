@@ -31,9 +31,14 @@ class DataSource(models.Model):
 
 
 class GitHubDataSource(DataSource):
-    client_id = models.CharField(max_length=100)
-    client_secret = models.CharField(max_length=100)
-    token = models.CharField(max_length=100)
+    """
+    GitHubDataSource is a container for GitHub-specific authentication
+    information. If that is not needed, it merely indicates that the
+    Datasource gets its information from GitHub
+    """
+    client_id = models.CharField(max_length=100, blank=True, null=True)
+    client_secret = models.CharField(max_length=100, blank=True, null=True)
+    token = models.CharField(max_length=100, blank=True, null=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
