@@ -17,7 +17,7 @@ from django.conf.urls import url, include
 from django.contrib import admin
 from rest_framework.routers import DefaultRouter
 
-from projects.adapters.github_hook import urls as github_urls
+from projects.adapters.github import urls as github_urls
 from projects.views import front_page
 from projects.api import all_views as project_views
 from users.api import all_views as user_views
@@ -37,5 +37,5 @@ urlpatterns = [
     url(r'^admin/', admin.site.urls),
     url(r'^v1/', include(router.urls, namespace='v1')),
     url(r'^$', front_page),
-    url(r'^hooks/github', include(github_urls, namespace='github_hook')),
+    url(r'^hooks/github/', include(github_urls)),
 ]
