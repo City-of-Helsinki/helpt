@@ -3,7 +3,6 @@ from .sync import ModelSyncher
 
 # To handle import of Workspace, that imports GithubAdapter
 from django.apps import apps
-# Rest of Webhook handling
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.http import HttpResponse, HttpResponseBadRequest
@@ -150,12 +149,23 @@ def receive_github_hook(request):
 
     # Work around circular imports
     Workspace = apps.get_model(app_label='projects', model_name='Workspace')
+    GitHubDataSource = apps.get_model(app_label='projects', model_name='GitHubDataSource')
+    Project = apps.get_model(app_label='projects', model_name='Project')
 
     try:
         workspace = Workspace.objects.get(origin_id=event_origin)
     except Workspace.DoesNotExist:
-        # TODO: Create missing workspaces
-        return HttpResponse("processed, no applicable workspaces found")
+        # New workspaces get 'unassigned' project and generic github
+        project, _ = Project.objects.get_or_create(name='Unassigned')
+        data_source, _ = GitHubDataSource.objects.get_or_create(name="GitHub")
+
+        name = event['repository']['name']
+        description = event['repository']['description']
+        workspace = Workspace.objects.create(origin_id=event_origin,
+                                             name=name,
+                                             description=description,
+                                             data_source=data_source,
+                                             project=project)
 
     # Tasks must be fetched through workspaces, as their identifiers
     # are only unique within workspace
