@@ -155,7 +155,7 @@ def receive_github_hook(request):
     try:
         workspace = Workspace.objects.get(origin_id=event_origin)
     except Workspace.DoesNotExist:
-        # New workspaces get 'unassigned' project and generic github
+        # New workspaces get 'Unassigned' project and unauthenticated GitHub
         project, _ = Project.objects.get_or_create(name='Unassigned')
         data_source, _ = GitHubDataSource.objects.get_or_create(name="GitHub")
 
