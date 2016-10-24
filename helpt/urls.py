@@ -14,10 +14,10 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 from django.conf.urls import url, include
-from django.contrib import admin
+from helusers import admin
 from rest_framework.routers import DefaultRouter
 
-from projects.adapters.github import urls as github_urls
+from projects.adapters.github import urls as github_hook_cb_urls
 from projects.views import front_page
 from projects.api import all_views as project_views
 from users.api import all_views as user_views
@@ -35,7 +35,8 @@ for view in hour_views:
 urlpatterns = [
     url('^', include('django.contrib.auth.urls')),
     url(r'^admin/', admin.site.urls),
+    url(r'^accounts/', include('allauth.urls')),
     url(r'^v1/', include(router.urls, namespace='v1')),
     url(r'^$', front_page),
-    url(r'^hooks/github/', include(github_urls)),
+    url(r'^hooks/github/', include(github_hook_cb_urls)),
 ]

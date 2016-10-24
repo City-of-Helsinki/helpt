@@ -71,7 +71,7 @@ class Project(models.Model):
     def __str__(self):
         return self.name
 
-
+# Is this used somewhere?
 class ProjectUser(models.Model):
     project = models.ForeignKey(Project, db_index=True, related_name='users')
     user = models.ForeignKey(settings.AUTH_USER_MODEL, db_index=True, related_name='projects')

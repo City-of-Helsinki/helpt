@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
+    'helusers',
     'helusers.providers.helsinki',
 
     'rest_framework',
