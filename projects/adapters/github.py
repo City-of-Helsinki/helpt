@@ -9,6 +9,10 @@ from django.http import HttpResponse, HttpResponseBadRequest
 from django.conf.urls import url
 import json
 
+# To connect the Github user to local user
+from django.dispatch import receiver
+from allauth.socialaccount.signals import social_account_added
+
 # To call Github API
 import requests
 import requests_cache
@@ -18,6 +22,7 @@ import logging
 requests_cache.install_cache('github')
 
 logger = logging.getLogger(__name__)
+
 
 class GitHubAdapter(Adapter):
     API_BASE = 'https://api.github.com/'
@@ -44,6 +49,14 @@ class GitHubAdapter(Adapter):
     def sync_workspaces(self):
         pass
 
+    def _create_user(self, workspace, assignee):
+        logger.debug("new user: {}".format(assignee['id']))
+        ds = workspace.data_source
+        m = apps.get_model(app_label='projects', model_name='DataSourceUser')
+        return m.objects.create(origin_id=assignee['id'],
+                                data_source=ds,
+                                username=assignee['login'])
+
     def update_task(self, obj, task, users_by_id):
         """
         Update a Task object with data from Github issue
@@ -65,7 +78,9 @@ class GitHubAdapter(Adapter):
         for assignee in assignees:
             user = users_by_id.get(assignee['id'])
             if not user:
-                continue
+                # We have an unseen user for this data source
+                user = self._create_user(obj.workspace, assignee)
+                users_by_id[user.origin_id] = user
             new_assignees.add(user)
         old_assignees = set([x.user for x in obj.assignments.all()])
 
@@ -79,7 +94,7 @@ class GitHubAdapter(Adapter):
 
     def _get_users_by_id(self):
         data_source_users = self.data_source.data_source_users.all()
-        return {int(u.origin_id): u.user for u in data_source_users}
+        return {int(u.origin_id): u for u in data_source_users}
 
     def sync_tasks(self, workspace):
         """
@@ -110,6 +125,24 @@ class GitHubAdapter(Adapter):
             self.update_task(obj, task, users_by_id)
 
         syncher.finish()
+
+
+@receiver(social_account_added)
+def handle_new_social_login(request, sociallogin, **kwargs):
+    """
+    Checks any social account additions, if they should be connected to
+    existing DataSourceUser's
+    """
+    if sociallogin.account.provider != 'github':
+        return
+
+    github_uid = sociallogin.account.uid
+
+    dsu = apps.get_model(app_label='projects', model_name='DataSourceUser')
+    users = dsu.objects.filter(data_source__type="github")\
+                       .filter(origin_id=github_uid)\
+                       .update(user=sociallogin.user)
+
 
 @csrf_exempt
 @require_POST

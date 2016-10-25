@@ -48,8 +48,11 @@ class GitHubDataSource(DataSource):
 class DataSourceUser(models.Model):
     data_source = models.ForeignKey(DataSource, db_index=True,
                                     related_name='data_source_users')
+    # Link to local user may be null. It is the responsibility of the
+    # adapter to fill this in when the user first logs in here.
     user = models.ForeignKey(settings.AUTH_USER_MODEL, db_index=True,
-                             related_name='data_source_users')
+                             related_name='data_source_users',
+                             blank=True, null=True)
 
     username = models.CharField(max_length=100, null=True, blank=True, db_index=True)
     origin_id = models.CharField(max_length=100, db_index=True)
@@ -123,7 +126,7 @@ class Task(models.Model):
     updated_at = models.DateTimeField()
     closed_at = models.DateTimeField(null=True, blank=True)
 
-    assigned_users = models.ManyToManyField(settings.AUTH_USER_MODEL,
+    assigned_users = models.ManyToManyField(DataSourceUser,
                                             through='TaskAssignment',
                                             blank=True)
 
@@ -154,7 +157,7 @@ class Task(models.Model):
 
 
 class TaskAssignment(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, related_name='task_assignments',
+    user = models.ForeignKey(DataSourceUser, related_name='task_assignments',
                              db_index=True)
     task = models.ForeignKey(Task, related_name='assignments', db_index=True)
 

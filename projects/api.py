@@ -1,10 +1,11 @@
 from dynamic_rest import serializers, viewsets
-from .models import Task, Workspace, Project, DataSource
+from .models import Task, Workspace, Project, DataSource, DataSourceUser
 from users.api import UserSerializer
-
+import logging
 
 all_views = []
 
+logger = logging.getLogger(__name__)
 
 def register_view(klass, name=None, base_name=None):
     if not name:
@@ -56,10 +57,30 @@ class WorkspaceViewSet(viewsets.DynamicModelViewSet):
     queryset = Workspace.objects.all()
     serializer_class = WorkspaceSerializer
 
+class AssignedUserSerializer(serializers.DynamicModelSerializer):
+    def to_representation(self, instance):
+        # We don't want to publish DataSourceUsers through API, only
+        # local users. This means that if corresponding local user
+        # does not yet exist, this is None
+        return instance.user_id
+
+    class Meta:
+        model = DataSourceUser
+
 
 class TaskSerializer(serializers.DynamicModelSerializer):
     workspace = serializers.DynamicRelationField(WorkspaceSerializer)
-    assigned_users = serializers.DynamicRelationField(UserSerializer, many=True)
+    assigned_users = serializers.DynamicRelationField(AssignedUserSerializer, many=True)
+
+    def to_representation(self, instance):
+        data = super(TaskSerializer, self).to_representation(instance)
+
+        # Representation will return nulls for users that do not have
+        # local counterpart. Filter them out here
+        if 'assigned_users' in data:
+            data['assigned_users'] = [x for x in data['assigned_users'] if x is not None]
+
+        return data
 
     class Meta:
         model = Task

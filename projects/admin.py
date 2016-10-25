@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import GitHubDataSource, Project, Workspace, Task, ProjectUser, DataSourceUser
+from .models import GitHubDataSource, Project, Workspace, Task, ProjectUser, DataSourceUser, TaskAssignment
 
 
 @admin.register(GitHubDataSource)
@@ -27,3 +27,8 @@ class ProjectUserAdmin(admin.ModelAdmin):
 @admin.register(DataSourceUser)
 class DataSourceUserAdmin(admin.ModelAdmin):
     pass
+
+@admin.register(TaskAssignment)
+class TaskAssignmentAdmin(admin.ModelAdmin):
+    pass
+

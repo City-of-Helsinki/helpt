@@ -34,6 +34,7 @@ for view in hour_views:
 
 urlpatterns = [
     url('^', include('django.contrib.auth.urls')),
+    url(r'^accounts/', include('allauth.urls')),
     url(r'^admin/', admin.site.urls),
     url(r'^accounts/', include('allauth.urls')),
     url(r'^v1/', include(router.urls, namespace='v1')),

@@ -35,6 +35,7 @@ INSTALLED_APPS = [
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
+    'allauth.socialaccount.providers.github',
     'helusers',
     'helusers.providers.helsinki',
 
@@ -159,6 +160,9 @@ SOCIALACCOUNT_PROVIDERS = {
 LOGIN_REDIRECT_URL = '/'
 ACCOUNT_LOGOUT_ON_GET = True
 SOCIALACCOUNT_ADAPTER = 'helusers.providers.helsinki.provider.SocialAccountAdapter'
+SOCIALACCOUNT_QUERY_EMAIL = True
+SOCIALACCOUNT_EMAIL_REQUIRED = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
 
 # REST Framework
 #
