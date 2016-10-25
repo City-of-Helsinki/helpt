@@ -130,7 +130,7 @@ class GitHubAdapter(Adapter):
 @receiver(social_account_added)
 def handle_new_social_login(request, sociallogin, **kwargs):
     """
-    Checks any social account additions, if they should be connected to
+    Checks any user account additions, if they should be connected to
     existing DataSourceUser's
     """
     if sociallogin.account.provider != 'github':
