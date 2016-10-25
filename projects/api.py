@@ -70,3 +70,12 @@ class TaskSerializer(serializers.DynamicModelSerializer):
 class TaskViewSet(viewsets.DynamicModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
+
+    def list(self, request, *args, **kwargs):
+        # Modify user filter to apply to nested relation
+        userfilter = request.query_params.get('filter{assigned_users}')
+        if userfilter:
+            del(request.query_params['filter{assigned_users}'])
+            request.query_params.add('filter{assigned_users.user}', userfilter)
+
+        return super(TaskViewSet, self).list(request, *args, **kwargs)
