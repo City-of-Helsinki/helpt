@@ -131,9 +131,14 @@ def connect_user_to_datasource(sociallogin):
     github_uid = sociallogin.uid
 
     dsu = apps.get_model(app_label='projects', model_name='DataSourceUser')
-    dsu.objects.filter(data_source__type="github")\
-               .filter(origin_id=github_uid)\
-               .update(user=sociallogin.user)
+    count = dsu.objects.filter(data_source__type="github")\
+                       .filter(origin_id=github_uid)\
+                       .update(user=sociallogin.user)
+
+    if count == 0:
+        # DataSourceUser did not exist yet, very proactive user logged in
+        dsu.objects.create(origin_id=github_uid, user=sociallogin.user,
+                           username=sociallogin.extra_data['login'])
 
 # handles the case where user signs up for the first time using social login
 @receiver(user_signed_up)
@@ -152,6 +157,7 @@ def handle_social_signup(request, user, **kwargs):
 
     # Exactly one should exist on new login, otherwise it cannot be a new login
     assert(len(user.socialaccount_set.all()) == 1)
+    # FIXME: this will fail with more than one social service
     sociallogin = user.socialaccount_set.get(provider='github')
 
     connect_user_to_datasource(sociallogin)
