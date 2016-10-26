@@ -11,6 +11,7 @@ import json
 
 # To connect the Github user to local user
 from django.dispatch import receiver
+from allauth.account.signals import user_signed_up
 from allauth.socialaccount.signals import social_account_added
 
 # To call Github API
@@ -126,23 +127,47 @@ class GitHubAdapter(Adapter):
 
         syncher.finish()
 
+def connect_user_to_datasource(sociallogin):
+    github_uid = sociallogin.uid
 
-@receiver(social_account_added)
-def handle_new_social_login(request, sociallogin, **kwargs):
+    dsu = apps.get_model(app_label='projects', model_name='DataSourceUser')
+    dsu.objects.filter(data_source__type="github")\
+               .filter(origin_id=github_uid)\
+               .update(user=sociallogin.user)
+
+# handles the case where user signs up for the first time using social login
+@receiver(user_signed_up)
+def handle_social_signup(request, user, **kwargs):
     """
-    Checks any user account additions, if they should be connected to
-    existing DataSourceUser's
+    Connects any GitHub socialaccounts for new users to corresponding
+    existing DataSourceAccount's or create a new DataSourceAccount if it is
+    still missing.
+
+    :param request: Django request
+    :param user: Django user
+    """
+    # Local user signup, no social account to connect
+    if len(user.socialaccount_set.all()) == 0:
+        return
+
+    # Exactly one should exist on new login, otherwise it cannot be a new login
+    assert(len(user.socialaccount_set.all()) == 1)
+    sociallogin = user.socialaccount_set.get(provider='github')
+
+    connect_user_to_datasource(sociallogin)
+
+# handles the case where user connects additional social logins
+@receiver(social_account_added)
+def handle_social_connection(request, sociallogin, **kwargs):
+    """
+    Connect any newly connected GitHub accounts to corresponding
+    DataSourceAccount's or create a new DataSourceAccount if it
+    is still missing.
     """
     if sociallogin.account.provider != 'github':
         return
 
-    github_uid = sociallogin.account.uid
-
-    dsu = apps.get_model(app_label='projects', model_name='DataSourceUser')
-    users = dsu.objects.filter(data_source__type="github")\
-                       .filter(origin_id=github_uid)\
-                       .update(user=sociallogin.user)
-
+    connect_user_to_datasource(sociallogin.account)
 
 @csrf_exempt
 @require_POST
