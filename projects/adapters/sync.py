@@ -2,6 +2,14 @@ class ModelSyncher(object):
 
     def __init__(self, queryset, generate_obj_id, delete_func=None,
                  delete_limit=0.4):
+        """
+        Initialize a ModelSyncher.
+
+        :param queryset: Django queryset containing currently known objects
+        :param generate_obj_id: function that should generate same ids for "same" objects
+        :param delete_func: function for de-persisting objects
+        :param delete_limit: failsafe maximum fraction of objects to delete
+        """
         d = {}
         self.generate_obj_id = generate_obj_id
         # Generate a list of all objects
@@ -15,6 +23,12 @@ class ModelSyncher(object):
         self.delete_func = delete_func
 
     def mark(self, obj):
+        """
+        Mark object to be kept (ie. it still exists at source)
+
+        :param obj: Object to be marked
+        :raises Exception: if object has already been marked
+        """
         if getattr(obj, '_found', False):
             raise Exception("Object %s (%s) already marked" % (obj, self.generate_obj_id(obj)))
 
@@ -25,9 +39,18 @@ class ModelSyncher(object):
         assert self.obj_dict[obj_id] == obj
 
     def get(self, obj_id):
+        """
+        Get an object per its synchronization id
+
+        :param obj_id: synchronization id of the object
+        :returns: a django model for the object
+        """
         return self.obj_dict.get(obj_id, None)
 
     def finish(self):
+        """
+        Run synchronization, applying delete_func to items not mark():ed
+        """
         delete_list = []
         for obj_id, obj in self.obj_dict.items():
             if not obj._found:
