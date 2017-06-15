@@ -57,12 +57,13 @@ class WorkspaceViewSet(viewsets.DynamicModelViewSet):
     queryset = Workspace.objects.all()
     serializer_class = WorkspaceSerializer
 
+
 class AssignedUserSerializer(serializers.DynamicModelSerializer):
     def to_representation(self, instance):
         # We don't want to publish DataSourceUsers through API, only
         # local users. This means that if corresponding local user
         # does not yet exist, this is None
-        return instance.user_id
+        return instance.user.uuid
 
     class Meta:
         model = DataSourceUser
@@ -87,16 +88,15 @@ class TaskSerializer(serializers.DynamicModelSerializer):
         name = 'task'
         plural_name = 'task'
 
+
 @register_view
 class TaskViewSet(viewsets.DynamicModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
 
-    def list(self, request, *args, **kwargs):
-        # Modify user filter to apply to nested relation
-        userfilter = request.query_params.get('filter{assigned_users}')
-        if userfilter:
-            del(request.query_params['filter{assigned_users}'])
-            request.query_params.add('filter{assigned_users.user}', userfilter)
-
-        return super(TaskViewSet, self).list(request, *args, **kwargs)
+    def get_queryset(self, *args, **kwargs):
+        queryset = super(TaskViewSet, self).get_queryset(*args, **kwargs)
+        args = self.request.query_params
+        if 'user_uuid' in args:
+            return queryset.filter(assigned_users__user__uuid=args.get('user_uuid'))
+        return queryset
