@@ -56,9 +56,10 @@ class ModelSyncher(object):
             if not obj._found:
                 delete_list.append(obj)
 
-        max_delete_count = len(self.obj_dict) * self.delete_limit
-        if len(delete_list) > 5 and len(delete_list) > max_delete_count:
-            raise Exception("Attempting to delete more than %d%% of total items" % int(self.delete_limit * 100))
+        if self.delete_limit is not None:
+            max_delete_count = len(self.obj_dict) * self.delete_limit
+            if len(delete_list) > 5 and len(delete_list) > max_delete_count:
+                raise Exception("Attempting to delete more than %d%% of total items" % int(self.delete_limit * 100))
 
         for obj in delete_list:
             if self.delete_func:

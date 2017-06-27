@@ -1,5 +1,5 @@
 Django
--e git+https://github.com/City-of-Helsinki/django-helusers.git#egg=django-helusers
+django-helusers
 django-allauth
 pytest
 pytest-django

@@ -1,12 +1,14 @@
 from django.conf import settings
 from django.db import models
+from django.utils.translation import ugettext_lazy as _
 
-from .adapters import GitHubAdapter
+from .adapters import GitHubAdapter, TrelloAdapter
 
 
 class DataSource(models.Model):
     TYPES = (
         ('github', 'GitHub'),
+        ('trello', 'Trello')
     )
 
     name = models.CharField(max_length=100)
@@ -22,12 +24,22 @@ class DataSource(models.Model):
         if not hasattr(self, '_adapter'):
             if self.type == 'github':
                 self._adapter = GitHubAdapter(self.githubdatasource)
+            elif self.type == 'trello':
+                self._adapter = TrelloAdapter(self.trellodatasource)
             else:
                 raise NotImplementedError('Unknown data source type: {}'.format(self.type))
         return self._adapter
 
     def __str__(self):
         return self.name
+
+    def sync_workspaces(self):
+        adapter = self.adapter
+        adapter.sync_workspaces()
+
+    def sync_data_source(self):
+        adapter = self.adapter
+        adapter.sync_data_source()
 
 
 class GitHubDataSource(DataSource):
@@ -45,7 +57,37 @@ class GitHubDataSource(DataSource):
         self.type = 'github'
 
 
+class TrelloDataSource(DataSource):
+    """
+    TrelloDataSource is a container for Trello-specific authentication
+    information.
+    """
+    key = models.CharField(max_length=100)
+    token = models.CharField(max_length=100)
+    organization = models.CharField(_('Trello organization ID'), max_length=50)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.type = 'trello'
+
+
+class DataSourceQuerySet(models.QuerySet):
+    def active(self):
+        return self.filter(state='active')
+
+    def inactive(self):
+        return self.filter(state='inactive')
+
+
 class DataSourceUser(models.Model):
+    STATE_ACTIVE = 'active'
+    STATE_INACTIVE = 'inactive'
+
+    STATES = (
+        (STATE_ACTIVE, _('active')),
+        (STATE_INACTIVE, _('inactive'))
+    )
+
     data_source = models.ForeignKey(DataSource, db_index=True,
                                     related_name='data_source_users')
     # Link to local user may be null. It is the responsibility of the
@@ -56,6 +98,26 @@ class DataSourceUser(models.Model):
 
     username = models.CharField(max_length=100, null=True, blank=True, db_index=True)
     origin_id = models.CharField(max_length=100, db_index=True)
+    state = models.CharField(max_length=10, choices=STATES, db_index=True,
+                             default=STATE_ACTIVE)
+
+    objects = DataSourceQuerySet.as_manager()
+
+    def __str__(self):
+        return "{}: {} -> {}".format(self.data_source, self.username, self.user)
+
+    def set_state(self, new_state):
+        """
+        Set the state of this data source user, verifying valid values
+
+        :param new_state: New state
+        """
+        if new_state == self.state:
+            return
+
+        assert new_state in [x[0] for x in self.STATES]
+        self.state = new_state
+        self.save(update_fields=['state'])
 
     class Meta:
         unique_together = (
@@ -64,15 +126,13 @@ class DataSourceUser(models.Model):
             ('data_source', 'origin_id'),
         )
 
-    def __str__(self):
-        return "{}: {} as {}".format(self.data_source, self.user, self.origin_id)
-
 
 class Project(models.Model):
     name = models.CharField(max_length=100)
 
     def __str__(self):
         return self.name
+
 
 # Is this used somewhere?
 class ProjectUser(models.Model):
@@ -83,21 +143,49 @@ class ProjectUser(models.Model):
         return "{} on {}".format(self.user, self.project)
 
 
+class WorkspaceQuerySet(models.QuerySet):
+    def open(self):
+        return self.filter(state='open')
+
+    def closed(self):
+        return self.filter(state='closed')
+
+
 class Workspace(models.Model):
+    STATE_OPEN = 'open'
+    STATE_CLOSED = 'closed'
+
+    STATES = (
+        (STATE_OPEN, _('open')),
+        (STATE_CLOSED, _('closed'))
+    )
+
     data_source = models.ForeignKey(DataSource, db_index=True,
                                     related_name='workspaces')
-    project = models.ForeignKey(Project, db_index=True,
-                                related_name='workspaces')
+    projects = models.ManyToManyField(Project, db_index=True,
+                                      related_name='workspaces')
     name = models.CharField(max_length=100)
     description = models.TextField(null=True, blank=True)
     origin_id = models.CharField(max_length=100, db_index=True)
+    state = models.CharField(max_length=10, choices=STATES, db_index=True,
+                             default=STATE_OPEN)
+
+    objects = WorkspaceQuerySet.as_manager()
 
     def __str__(self):
-        return self.name
+        return "%s / %s" % (self.data_source, self.name)
 
     def sync_tasks(self):
         adapter = self.data_source.adapter
         adapter.sync_tasks(self)
+
+    class Meta:
+        unique_together = [('data_source', 'origin_id')]
+        get_latest_by = 'created_at'
+
+
+class TrelloWorkspace(Workspace):
+    in_progress_list = models.CharField(max_length=100)
 
 
 class TaskQuerySet(models.QuerySet):
@@ -113,8 +201,8 @@ class Task(models.Model):
     STATE_CLOSED = 'closed'
 
     STATES = (
-        (STATE_OPEN, 'open'),
-        (STATE_CLOSED, 'closed')
+        (STATE_OPEN, _('open')),
+        (STATE_CLOSED, _('closed'))
     )
 
     name = models.CharField(max_length=200)
@@ -122,7 +210,7 @@ class Task(models.Model):
     origin_id = models.CharField(max_length=100, db_index=True)
     state = models.CharField(max_length=10, choices=STATES, db_index=True)
 
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField()
     closed_at = models.DateTimeField(null=True, blank=True)
 
@@ -135,7 +223,7 @@ class Task(models.Model):
     def __str__(self):
         return "{} ({})".format(self.name, self.workspace)
 
-    def set_state(self, new_state):
+    def set_state(self, new_state, save=True):
         """
         Set the state of this task, verifying valid values
 
@@ -146,9 +234,8 @@ class Task(models.Model):
 
         assert new_state in [x[0] for x in self.STATES]
         self.state = new_state
-        # FIXME, inquire why the model is saved here
-        # (update_fields precludes using this for new models)
-#        self.save(update_fields=['state'])
+        if save:
+            self.save(update_fields=['state'])
 
     class Meta:
         ordering = ['workspace', 'origin_id']

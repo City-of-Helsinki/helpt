@@ -16,11 +16,9 @@ from allauth.socialaccount.signals import social_account_added
 
 # To call Github API
 import requests
-import requests_cache
 
 import logging
 
-requests_cache.install_cache('github')
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +68,7 @@ class GitHubAdapter(Adapter):
         for f in ['created_at', 'updated_at', 'closed_at']:
             setattr(obj, f, task[f])
 
-        obj.set_state(task['state'])
+        obj.set_state(task['state'], save=False)
 
         obj.save()
 
@@ -127,6 +125,7 @@ class GitHubAdapter(Adapter):
 
         syncher.finish()
 
+
 def connect_user_to_datasource(sociallogin):
     github_uid = sociallogin.uid
 
@@ -139,6 +138,7 @@ def connect_user_to_datasource(sociallogin):
         # DataSourceUser did not exist yet, very proactive user logged in
         dsu.objects.create(origin_id=github_uid, user=sociallogin.user,
                            username=sociallogin.extra_data['login'])
+
 
 # handles the case where user signs up for the first time using social login
 @receiver(user_signed_up)
@@ -162,6 +162,7 @@ def handle_social_signup(request, user, **kwargs):
 
     connect_user_to_datasource(sociallogin)
 
+
 # handles the case where user connects additional social logins
 @receiver(social_account_added)
 def handle_social_connection(request, sociallogin, **kwargs):
@@ -174,6 +175,7 @@ def handle_social_connection(request, sociallogin, **kwargs):
         return
 
     connect_user_to_datasource(sociallogin.account)
+
 
 @csrf_exempt
 @require_POST
@@ -246,5 +248,6 @@ def receive_github_hook(request):
     adapter.update_task(task, event['issue'], users_by_id)
 
     return HttpResponse("processed, acted on")
+
 
 urls = [url(r'$^', receive_github_hook)]
