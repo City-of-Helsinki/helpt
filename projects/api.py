@@ -22,7 +22,7 @@ def register_view(klass, name=None, base_name=None):
 class ProjectSerializer(serializers.DynamicModelSerializer):
     class Meta:
         model = Project
-        fields = ['name']
+        fields = ['id', 'name']
         name = 'project'
         plural_name = 'project'
 
@@ -37,7 +37,7 @@ class DataSourceSerializer(serializers.DynamicModelSerializer):
     class Meta:
         model = DataSource
         fields = [
-            'name', 'type'
+            'id', 'name', 'type'
         ]
         name = 'data_source'
         plural_name = 'data_source'
@@ -54,7 +54,7 @@ class WorkspaceSerializer(serializers.DynamicModelSerializer):
     class Meta:
         model = Workspace
         fields = [
-            'data_source', 'projects', 'name', 'description', 'origin_id',
+            'id', 'data_source', 'projects', 'name', 'description', 'origin_id',
             'state'
         ]
         name = 'workspace'
@@ -99,7 +99,7 @@ class TaskSerializer(serializers.DynamicModelSerializer):
     class Meta:
         model = Task
         fields = [
-            'name', 'workspace', 'origin_id', 'state', 'created_at', 'updated_at', 'closed_at',
+            'id', 'name', 'workspace', 'origin_id', 'state', 'created_at', 'updated_at', 'closed_at',
             'assigned_users'
         ]
         name = 'task'

@@ -23,7 +23,7 @@ class EntrySerializer(serializers.DynamicModelSerializer):
 
     class Meta:
         model = Entry
-        fields = ['user', 'date', 'task', 'minutes', 'state']
+        fields = ['id', 'user', 'date', 'task', 'minutes', 'state']
         name = 'entry'
         plural_name = 'entry'
 
