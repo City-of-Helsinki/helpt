@@ -23,8 +23,10 @@ class EntrySerializer(serializers.DynamicModelSerializer):
 
     class Meta:
         model = Entry
+        fields = ['user', 'date', 'task', 'minutes', 'state']
         name = 'entry'
         plural_name = 'entry'
+
 
 @register_view
 class EntryViewSet(viewsets.DynamicModelViewSet):
