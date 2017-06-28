@@ -152,6 +152,7 @@ def handle_social_signup(request, user, **kwargs):
     :param user: Django user
     """
     # Local user signup, no social account to connect
+    return
     if len(user.socialaccount_set.all()) == 0:
         return
 

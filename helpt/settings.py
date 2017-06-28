@@ -28,6 +28,9 @@ CORS_ORIGIN_ALLOW_ALL = True
 # Application definition
 
 INSTALLED_APPS = [
+    'helusers',
+    'helusers.providers.helsinki_oidc',
+
     'users',
     'hours',
     'projects',
@@ -36,8 +39,6 @@ INSTALLED_APPS = [
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.github',
-    'helusers',
-    'helusers.providers.helsinki',
 
     'rest_framework',
     'dynamic_rest',
@@ -153,13 +154,13 @@ STATICFILES_FINDERS = [
 SITE_ID = 1
 AUTH_USER_MODEL = 'users.User'
 SOCIALACCOUNT_PROVIDERS = {
-    'helsinki': {
+    'helsinki_oidc': {
         'VERIFIED_EMAIL': True
     }
 }
 LOGIN_REDIRECT_URL = '/'
 ACCOUNT_LOGOUT_ON_GET = True
-SOCIALACCOUNT_ADAPTER = 'helusers.providers.helsinki.provider.SocialAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'helusers.providers.helsinki_oidc.provider.SocialAccountAdapter'
 SOCIALACCOUNT_QUERY_EMAIL = True
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
@@ -168,7 +169,9 @@ SOCIALACCOUNT_AUTO_SIGNUP = True
 #
 REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.LimitOffsetPagination',
-    'DEFAULT_AUTHENTICATION_CLASSES': ('helpt.auth.HelptSessionAuthentication',),
+    'DEFAULT_AUTHENTICATION_CLASSES': (
+        'helusers.oidc.ApiTokenAuthentication',
+    ),
     'PAGE_SIZE': 100,
     'DEFAULT_PERMISSION_CLASSES': (
         'rest_framework.permissions.DjangoModelPermissionsOrAnonReadOnly',
