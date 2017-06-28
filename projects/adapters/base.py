@@ -19,8 +19,6 @@ class Adapter(object):
             ws.set_state('closed')
             ws.save(update_fields=['state'])
 
-        workspaces = self.fetch_workspaces()
-
         # Get access to model through trickery because otherwise
         # there would be a circular import.
         Workspace = self.data_source.workspaces.model
