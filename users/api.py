@@ -21,6 +21,7 @@ class UserSerializer(serializers.DynamicModelSerializer):
     class Meta:
         model = User
         name = 'user'
+        fields = ['department_name', 'email', 'first_name', 'last_name', 'username', 'uuid']
         plural_name = 'user'
 
 
