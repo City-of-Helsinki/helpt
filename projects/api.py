@@ -22,6 +22,7 @@ def register_view(klass, name=None, base_name=None):
 class ProjectSerializer(serializers.DynamicModelSerializer):
     class Meta:
         model = Project
+        fields = ['name']
         name = 'project'
         plural_name = 'project'
 
@@ -35,6 +36,9 @@ class ProjectViewSet(viewsets.DynamicModelViewSet):
 class DataSourceSerializer(serializers.DynamicModelSerializer):
     class Meta:
         model = DataSource
+        fields = [
+            'name', 'type'
+        ]
         name = 'data_source'
         plural_name = 'data_source'
 
@@ -46,8 +50,13 @@ class DataSourceViewSet(viewsets.DynamicModelViewSet):
 
 class WorkspaceSerializer(serializers.DynamicModelSerializer):
     data_source = serializers.DynamicRelationField(DataSourceSerializer)
+
     class Meta:
         model = Workspace
+        fields = [
+            'data_source', 'projects', 'name', 'description', 'origin_id',
+            'state'
+        ]
         name = 'workspace'
         plural_name = 'workspace'
 
@@ -63,10 +72,14 @@ class AssignedUserSerializer(serializers.DynamicModelSerializer):
         # We don't want to publish DataSourceUsers through API, only
         # local users. This means that if corresponding local user
         # does not yet exist, this is None
-        return instance.user.uuid
+        if not instance.user:
+            return None
+        else:
+            return instance.user.uuid
 
     class Meta:
         model = DataSourceUser
+        fields = []
 
 
 class TaskSerializer(serializers.DynamicModelSerializer):
@@ -85,6 +98,10 @@ class TaskSerializer(serializers.DynamicModelSerializer):
 
     class Meta:
         model = Task
+        fields = [
+            'name', 'workspace', 'origin_id', 'state', 'created_at', 'updated_at', 'closed_at',
+            'assigned_users'
+        ]
         name = 'task'
         plural_name = 'task'
 
