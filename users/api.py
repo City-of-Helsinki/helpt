@@ -1,4 +1,5 @@
 from dynamic_rest import serializers, viewsets
+from rest_framework import serializers as drf_serializers
 from .models import User
 
 
@@ -18,10 +19,12 @@ def register_view(klass, name=None, base_name=None):
 
 
 class UserSerializer(serializers.DynamicModelSerializer):
+    id = drf_serializers.UUIDField(source='uuid')
+
     class Meta:
         model = User
         name = 'user'
-        fields = ['id', 'department_name', 'email', 'first_name', 'last_name', 'username', 'uuid']
+        fields = ['id', 'department_name', 'email', 'first_name', 'last_name', 'username']
         plural_name = 'user'
 
 

@@ -1,4 +1,4 @@
-from dynamic_rest import serializers, viewsets
+from dynamic_rest import serializers, viewsets, fields
 from .models import Entry
 from users.api import UserSerializer
 
@@ -18,8 +18,23 @@ def register_view(klass, name=None, base_name=None):
     return klass
 
 
+class UUIDBasedRelationField(fields.DynamicRelationField):
+    def to_internal_value_single(self, data, serializer):
+        related_model = serializer.Meta.model
+        if isinstance(data, related_model):
+            return data
+        try:
+            instance = related_model.objects.get(uuid=data)
+        except related_model.DoesNotExist:
+            raise fields.NotFound(
+                "'%s object with ID=%s not found" %
+                (related_model.__name__, data)
+            )
+        return instance
+
+
 class EntrySerializer(serializers.DynamicModelSerializer):
-    user = serializers.DynamicRelationField(UserSerializer)
+    user = UUIDBasedRelationField(UserSerializer)
 
     class Meta:
         model = Entry

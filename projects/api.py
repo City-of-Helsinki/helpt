@@ -42,6 +42,7 @@ class DataSourceSerializer(serializers.DynamicModelSerializer):
         name = 'data_source'
         plural_name = 'data_source'
 
+
 @register_view
 class DataSourceViewSet(viewsets.DynamicModelViewSet):
     queryset = DataSource.objects.all()
@@ -114,6 +115,8 @@ class TaskViewSet(viewsets.DynamicModelViewSet):
     def get_queryset(self, *args, **kwargs):
         queryset = super(TaskViewSet, self).get_queryset(*args, **kwargs)
         args = self.request.query_params
-        if 'user_uuid' in args:
-            return queryset.filter(assigned_users__user__uuid=args.get('user_uuid'))
+        user_filter = args.get('user')
+        if user_filter:
+            print("filtering")
+            queryset = queryset.filter(assigned_users__user__uuid=user_filter)
         return queryset

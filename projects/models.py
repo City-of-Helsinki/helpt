@@ -94,6 +94,7 @@ class DataSourceUser(models.Model):
     # adapter to fill this in when the user first logs in here.
     user = models.ForeignKey(settings.AUTH_USER_MODEL, db_index=True,
                              related_name='data_source_users',
+                             on_delete=models.SET_NULL,
                              blank=True, null=True)
 
     username = models.CharField(max_length=100, null=True, blank=True, db_index=True)
