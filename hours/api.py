@@ -32,6 +32,13 @@ class UUIDBasedRelationField(fields.DynamicRelationField):
             )
         return instance
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        if not isinstance(ret, int):
+            return ret
+        related_model = self.serializer.get_model()
+        return related_model.objects.get(id=ret).uuid
+
 
 class EntrySerializer(serializers.DynamicModelSerializer):
     user = UUIDBasedRelationField(UserSerializer)
