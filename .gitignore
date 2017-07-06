@@ -20,3 +20,4 @@ perf*csv
 /node_modules
 /components
 /static
+/*.sublime-*
