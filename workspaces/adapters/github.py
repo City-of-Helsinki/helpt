@@ -1,23 +1,19 @@
-from .base import Adapter
-from .sync import ModelSyncher
+import requests
+import logging
+import json
 
-# To handle import of Workspace, that imports GithubAdapter
 from django.apps import apps
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.conf.urls import url
-import json
-
-# To connect the Github user to local user
 from django.dispatch import receiver
+
 from allauth.account.signals import user_signed_up
 from allauth.socialaccount.signals import social_account_added
 
-# To call Github API
-import requests
-
-import logging
+from .base import Adapter
+from .sync import ModelSyncher
 
 
 logger = logging.getLogger(__name__)
@@ -51,7 +47,7 @@ class GitHubAdapter(Adapter):
     def _create_user(self, workspace, assignee):
         logger.debug("new user: {}".format(assignee['id']))
         ds = workspace.data_source
-        m = apps.get_model(app_label='projects', model_name='DataSourceUser')
+        m = apps.get_model(app_label='workspaces', model_name='DataSourceUser')
         return m.objects.create(origin_id=assignee['id'],
                                 data_source=ds,
                                 username=assignee['login'])
@@ -129,7 +125,7 @@ class GitHubAdapter(Adapter):
 def connect_user_to_datasource(sociallogin):
     github_uid = sociallogin.uid
 
-    dsu = apps.get_model(app_label='projects', model_name='DataSourceUser')
+    dsu = apps.get_model(app_label='workspaces', model_name='DataSourceUser')
     count = dsu.objects.filter(data_source__type="github")\
                        .filter(origin_id=github_uid)\
                        .update(user=sociallogin.user)
@@ -215,9 +211,9 @@ def receive_github_hook(request):
         return HttpResponseBadRequest("Repository information missing, should be included with issue")
 
     # Work around circular imports
-    Workspace = apps.get_model(app_label='projects', model_name='Workspace')
-    GitHubDataSource = apps.get_model(app_label='projects', model_name='GitHubDataSource')
-    Project = apps.get_model(app_label='projects', model_name='Project')
+    Workspace = apps.get_model(app_label='workspaces', model_name='Workspace')
+    GitHubDataSource = apps.get_model(app_label='workspaces', model_name='GitHubDataSource')
+    Project = apps.get_model(app_label='workspaces', model_name='Project')
 
     try:
         workspace = Workspace.objects.get(origin_id=event_origin)

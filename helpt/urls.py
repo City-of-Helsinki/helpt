@@ -14,30 +14,38 @@ Including another URLconf
     2. Add a URL to urlpatterns:  url(r'^blog/', include('blog.urls'))
 """
 from django.conf.urls import url, include
+from django.core.urlresolvers import reverse
+from django.views.generic import RedirectView
 from helusers import admin
 from rest_framework.routers import DefaultRouter
 
-from projects.adapters.github import urls as github_hook_cb_urls
-from projects.views import front_page
-from projects.api import all_views as project_views
+from workspaces.adapters.github import urls as github_hook_cb_urls
+from workspaces.api import all_views as workspace_views
 from users.api import all_views as user_views
 from hours.api import all_views as hour_views
 
 router = DefaultRouter()
 
-for view in project_views:
+for view in workspace_views:
     router.register(view['name'], view['class'], base_name=view.get('base_name'))
 for view in user_views:
     router.register(view['name'], view['class'], base_name=view.get('base_name'))
 for view in hour_views:
     router.register(view['name'], view['class'], base_name=view.get('base_name'))
 
+
+class RedirectToAPIRootView(RedirectView):
+    permanent = False
+
+    def get_redirect_url(self, *args, **kwargs):
+        return reverse('v1:api-root')
+
+
 urlpatterns = [
     url('^', include('django.contrib.auth.urls')),
     url(r'^accounts/', include('allauth.urls')),
     url(r'^admin/', admin.site.urls),
-    url(r'^accounts/', include('allauth.urls')),
     url(r'^v1/', include(router.urls, namespace='v1')),
-    url(r'^$', front_page),
+    url(r'^$', RedirectToAPIRootView.as_view()),
     url(r'^hooks/github/', include(github_hook_cb_urls)),
 ]

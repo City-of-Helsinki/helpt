@@ -33,6 +33,7 @@ INSTALLED_APPS = [
 
     'users',
     'hours',
+    'workspaces',
     'projects',
 
     'allauth',
@@ -160,7 +161,7 @@ SOCIALACCOUNT_PROVIDERS = {
 }
 LOGIN_REDIRECT_URL = '/'
 ACCOUNT_LOGOUT_ON_GET = True
-SOCIALACCOUNT_ADAPTER = 'helusers.providers.helsinki_oidc.provider.SocialAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'helusers.adapter.SocialAccountAdapter'
 SOCIALACCOUNT_QUERY_EMAIL = True
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_AUTO_SIGNUP = True

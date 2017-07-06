@@ -97,12 +97,8 @@ class Adapter(object):
 
     def save_users(self, users):
         def mark_inactive(dsu):
-            if dsu.state != dsu.ACTIVE:
-                return
-            if dsu.task_assignments.exists():
-                return
-            logger.debug("Marking data source user %s inactive" % dsu)
-            dsu.set_state(dsu.INACTIVE)
+            # Currently we don't mark DataSourceUsers inactive
+            return
 
         DataSourceUser = self.data_source.data_source_users.model
         syncher = ModelSyncher(self.data_source.data_source_users.all(),

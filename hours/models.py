@@ -10,7 +10,7 @@ class Entry(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, db_index=True,
                              related_name='entries')
     date = models.DateField(db_index=True)
-    task = models.ForeignKey('projects.Task', db_index=True, related_name='entries')
+    task = models.ForeignKey('workspaces.Task', db_index=True, related_name='entries')
     minutes = models.PositiveIntegerField()
 
     state = models.CharField(max_length=20, choices=STATES, default='public')
