@@ -42,15 +42,24 @@ class TrelloAdapter(Adapter):
         params.update(kwargs)
 
         post_kwargs['headers'] = {'Content-type': 'application/json'}
-        print(post_kwargs)
         resp = requests.post(url, **post_kwargs)
         if resp.status_code != 200:
             raise TrelloAPIException('POST failed with %d: "%s"' % (
                 resp.status_code, resp.content.decode('utf8')
             ))
 
+    def _import_list(self, lst):
+        data = dict(name=lst['name'], origin_id=lst['id'], position=lst['pos'])
+        if lst['closed']:
+            state = 'closed'
+        else:
+            state = 'open'
+        data['state'] = state
+        return data
+
     def _import_board(self, board):
         data = dict(name=board['name'], description=None, origin_id=board['id'])
+        data['lists'] = [self._import_list(l) for l in board['lists']]
         return data
 
     def _import_user(self, user):
@@ -67,12 +76,14 @@ class TrelloAdapter(Adapter):
             assigned_users=card['idMembers'],
             updated_at=card['dateLastActivity'],
             name=card['name'],
+            position=card['pos'],
+            list_origin_id=card['idList']
         )
 
     def sync_workspaces(self):
         organization = self.data_source.organization
         data = self.api_get('organizations/%s/boards' % organization,
-                            memberships_member='true')
+                            memberships_member='true', lists='open')
         workspaces = [self._import_board(board) for board in data]
         self._update_workspaces(workspaces)
 

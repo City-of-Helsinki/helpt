@@ -10,14 +10,47 @@ class Adapter(object):
     def __init__(self, data_source):
         self.data_source = data_source
 
+    def _update_workspace_lists(self, workspace, lists):
+        def close_list(lst):
+            if lst.state == lst.STATE_CLOSED:
+                return
+            logger.debug("Marking list %s closed" % lst)
+            lst.set_state('closed')
+
+        WorkspaceList = workspace.lists.model
+        syncher = ModelSyncher(workspace.lists.all(),
+                               lambda lst: lst.origin_id,
+                               delete_func=close_list)
+
+        for lst in lists:
+            obj = syncher.get(lst['origin_id'])
+            if not obj:
+                obj = WorkspaceList(workspace=workspace, origin_id=lst['origin_id'])
+            for attr_name, value in lst.items():
+                if attr_name == 'state':
+                    continue
+                setattr(obj, attr_name, value)
+            if not obj.id:
+                logger.debug('Creating new workspace list: %s' % obj)
+                created = True
+            else:
+                created = False
+            obj.save()
+            if created and 'state' in lst:
+                obj.set_state(lst['state'])
+            syncher.mark(obj)
+
+        syncher.finish()
+
     def _update_workspaces(self, workspaces):
         """
         Synchronizes workspace database based on supplied data dicts
         """
         def close_workspace(ws):
+            if ws.state == ws.STATE_CLOSED:
+                return
             logger.debug("Marking workspace %s closed" % ws)
             ws.set_state('closed')
-            ws.save(update_fields=['state'])
 
         # Get access to model through trickery because otherwise
         # there would be a circular import.
@@ -30,11 +63,20 @@ class Adapter(object):
             obj = syncher.get(ws['origin_id'])
             if not obj:
                 obj = Workspace(data_source=self.data_source, origin_id=ws['origin_id'])
+            ws_lists = ws.pop('lists', [])
             for attr_name, value in ws.items():
+                if attr_name == 'state':
+                    continue
                 setattr(obj, attr_name, value)
             if not obj.id:
                 logger.debug('Creating new workspace: %s' % obj)
+                created = True
+            else:
+                created = False
             obj.save()
+            if created and 'state' in ws:
+                obj.set_state(ws['state'])
+            self._update_workspace_lists(obj, ws_lists)
             syncher.mark(obj)
 
         syncher.finish()
@@ -46,6 +88,8 @@ class Adapter(object):
 
         users = self.data_source.data_source_users.all().select_related('user')
         users_by_id = {u.origin_id: u for u in users}
+
+        lists_by_id = {l.origin_id: l for l in workspace.lists.all()}
 
         Task = workspace.tasks.model
         syncher = ModelSyncher(workspace.tasks.open(),
@@ -59,12 +103,20 @@ class Adapter(object):
                 obj = Task(workspace=workspace, origin_id=task_id)
 
             syncher.mark(obj)
-            obj.set_state(task.pop('state'), save=False)
+            task_state = task.pop('state', None)
 
             assigned_users = task.pop('assigned_users')
 
+            list_id = task.pop('list_origin_id', None)
+            obj.list = lists_by_id.get(list_id)
+
             for attr_name, value in task.items():
                 setattr(obj, attr_name, value)
+
+            if obj.list and obj.list.task_state:
+                task_state = obj.list.task_state
+
+            obj.set_state(task_state, save=False)
             obj.save()
 
             new_assignees = set()

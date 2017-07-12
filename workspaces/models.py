@@ -3,6 +3,7 @@ from django.db import models
 from django.utils.translation import ugettext_lazy as _
 
 from projects.models import Project
+from projects.models.utils import TimestampedModel
 from .adapters import GitHubAdapter, TrelloAdapter
 
 
@@ -137,7 +138,7 @@ class WorkspaceQuerySet(models.QuerySet):
         return self.filter(state='closed')
 
 
-class Workspace(models.Model):
+class Workspace(TimestampedModel):
     STATE_OPEN = 'open'
     STATE_CLOSED = 'closed'
 
@@ -161,6 +162,19 @@ class Workspace(models.Model):
     def __str__(self):
         return "%s / %s" % (self.data_source, self.name)
 
+    def set_state(self, new_state):
+        """
+        Set the state of this workspace, verifying valid values
+
+        :param new_state: New state
+        """
+        if new_state == self.state:
+            return
+
+        assert new_state in [x[0] for x in self.STATES]
+        self.state = new_state
+        self.save(update_fields=['state'])
+
     def sync_tasks(self):
         adapter = self.data_source.adapter
         adapter.sync_tasks(self)
@@ -168,10 +182,6 @@ class Workspace(models.Model):
     class Meta:
         unique_together = [('data_source', 'origin_id')]
         get_latest_by = 'created_at'
-
-
-class TrelloWorkspace(Workspace):
-    in_progress_list = models.CharField(max_length=100)
 
 
 class TaskQuerySet(models.QuerySet):
@@ -193,6 +203,9 @@ class Task(models.Model):
 
     name = models.CharField(max_length=200)
     workspace = models.ForeignKey(Workspace, db_index=True, related_name='tasks')
+    list = models.ForeignKey('WorkspaceList', null=True, related_name='tasks')
+    # Trello uses floating point positions
+    position = models.FloatField(null=True)
     origin_id = models.CharField(max_length=100, db_index=True)
     state = models.CharField(max_length=10, choices=STATES, db_index=True)
 
@@ -224,7 +237,7 @@ class Task(models.Model):
             self.save(update_fields=['state'])
 
     class Meta:
-        ordering = ['workspace', 'origin_id']
+        ordering = ['workspace', 'list', 'position', 'origin_id']
         unique_together = [('workspace', 'origin_id')]
         get_latest_by = 'created_at'
 
@@ -239,3 +252,52 @@ class TaskAssignment(models.Model):
 
     class Meta:
         unique_together = [('user', 'task')]
+
+
+class WorkspaceListQuerySet(models.QuerySet):
+    def open(self):
+        return self.filter(state='open')
+
+    def closed(self):
+        return self.filter(state='closed')
+
+
+class WorkspaceList(TimestampedModel):
+    STATE_OPEN = 'open'
+    STATE_CLOSED = 'closed'
+
+    STATES = (
+        (STATE_OPEN, _('open')),
+        (STATE_CLOSED, _('closed'))
+    )
+
+    name = models.CharField(max_length=200)
+    position = models.FloatField(null=True)
+    workspace = models.ForeignKey(Workspace, db_index=True,
+                                  related_name='lists')
+    origin_id = models.CharField(max_length=100, db_index=True)
+    state = models.CharField(max_length=10, choices=STATES, db_index=True,
+                             default=STATE_OPEN)
+
+    # If being on this list makes tasks open or closed, task_state
+    # is set accordingly.
+    task_state = models.CharField(max_length=10, choices=Task.STATES, null=True)
+
+    objects = WorkspaceListQuerySet.as_manager()
+
+    def __str__(self):
+        return "{}: {}".format(self.workspace, self.name)
+
+    def set_state(self, new_state, save=True):
+        """
+        Set the state of this list, verifying valid values
+
+        :param new_state: Requested state for this list
+        """
+        if new_state == self.state:
+            return
+
+        assert new_state in [x[0] for x in self.STATES]
+        self.state = new_state
+        if save:
+            self.save(update_fields=['state'])
