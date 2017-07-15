@@ -20,6 +20,7 @@ from helusers import admin
 from rest_framework.routers import DefaultRouter
 
 from workspaces.adapters.github import urls as github_hook_cb_urls
+from workspaces.adapters.trello import urls as trello_hook_cb_urls
 from workspaces.api import all_views as workspace_views
 from users.api import all_views as user_views
 from hours.api import all_views as hour_views
@@ -48,4 +49,5 @@ urlpatterns = [
     url(r'^v1/', include(router.urls, namespace='v1')),
     url(r'^$', RedirectToAPIRootView.as_view()),
     url(r'^hooks/github/', include(github_hook_cb_urls)),
+    url(r'^hooks/trello/', include(trello_hook_cb_urls)),
 ]

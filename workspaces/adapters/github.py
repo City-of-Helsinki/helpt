@@ -247,4 +247,4 @@ def receive_github_hook(request):
     return HttpResponse("processed, acted on")
 
 
-urls = [url(r'$^', receive_github_hook)]
+urls = [url(r'^$', receive_github_hook)]

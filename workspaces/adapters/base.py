@@ -42,7 +42,7 @@ class Adapter(object):
 
         syncher.finish()
 
-    def _update_workspaces(self, workspaces):
+    def _update_workspaces(self, workspace_or_workspaces):
         """
         Synchronizes workspace database based on supplied data dicts
         """
@@ -52,12 +52,20 @@ class Adapter(object):
             logger.debug("Marking workspace %s closed" % ws)
             ws.set_state('closed')
 
+        if isinstance(workspace_or_workspaces, dict):
+            workspaces = [workspace_or_workspaces]
+            skip_delete = True
+        else:
+            workspaces = workspace_or_workspaces
+            skip_delete = False
+
         # Get access to model through trickery because otherwise
         # there would be a circular import.
         Workspace = self.data_source.workspaces.model
         syncher = ModelSyncher(self.data_source.workspaces.open(),
                                lambda ws: ws.origin_id,
-                               delete_func=close_workspace)
+                               delete_func=close_workspace,
+                               skip_delete=skip_delete)
 
         for ws in workspaces:
             obj = syncher.get(ws['origin_id'])
@@ -81,10 +89,17 @@ class Adapter(object):
 
         syncher.finish()
 
-    def _update_tasks(self, workspace, tasks):
+    def _update_tasks(self, workspace, task_or_tasks):
         def close_task(task):
             logger.debug("Marking %s closed" % task)
             task.set_state('closed')
+
+        skip_delete = False
+        if isinstance(task_or_tasks, dict):
+            tasks = [task_or_tasks]
+            skip_delete = True
+        else:
+            tasks = task_or_tasks
 
         users = self.data_source.data_source_users.all().select_related('user')
         users_by_id = {u.origin_id: u for u in users}
@@ -92,9 +107,10 @@ class Adapter(object):
         lists_by_id = {l.origin_id: l for l in workspace.lists.all()}
 
         Task = workspace.tasks.model
-        syncher = ModelSyncher(workspace.tasks.open(),
+        syncher = ModelSyncher(workspace.tasks.all(),
                                lambda task: task.origin_id,
-                               delete_func=close_task)
+                               delete_func=close_task,
+                               skip_delete=skip_delete)
         for task in tasks:
             task = task.copy()
             task_id = task.pop('origin_id')
@@ -138,12 +154,18 @@ class Adapter(object):
 
         syncher.finish()
 
-    def sync_workspaces(self):
+    def sync_workspaces(self, origin_id=None):
         raise NotImplementedError()
 
     def sync_tasks(self, workspace):
         """
         Read tasks for a given workspace.
+        """
+        raise NotImplementedError()
+
+    def sync_single_task(self, workspace, task_origin_id):
+        """
+        Read a single task for a given workspace.
         """
         raise NotImplementedError()
 

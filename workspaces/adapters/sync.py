@@ -1,7 +1,7 @@
 class ModelSyncher(object):
 
     def __init__(self, queryset, generate_obj_id, delete_func=None,
-                 delete_limit=0.4):
+                 delete_limit=0.4, skip_delete=False):
         """
         Initialize a ModelSyncher.
 
@@ -21,6 +21,7 @@ class ModelSyncher(object):
         self.obj_dict = d
         self.delete_limit = delete_limit
         self.delete_func = delete_func
+        self.skip_delete = skip_delete
 
     def mark(self, obj):
         """
@@ -51,6 +52,9 @@ class ModelSyncher(object):
         """
         Run synchronization, applying delete_func to items not mark():ed
         """
+        if self.skip_delete:
+            return
+
         delete_list = []
         for obj_id, obj in self.obj_dict.items():
             if not obj._found:

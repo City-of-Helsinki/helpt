@@ -156,6 +156,7 @@ class Workspace(TimestampedModel):
     origin_id = models.CharField(max_length=100, db_index=True)
     state = models.CharField(max_length=10, choices=STATES, db_index=True,
                              default=STATE_OPEN)
+    sync = models.BooleanField(default=False)
 
     objects = WorkspaceQuerySet.as_manager()
 
@@ -178,6 +179,14 @@ class Workspace(TimestampedModel):
     def sync_tasks(self):
         adapter = self.data_source.adapter
         adapter.sync_tasks(self)
+
+    def schedule_task_sync(self, task_origin_id):
+        adapter = self.data_source.adapter
+        adapter.sync_single_task(self, task_origin_id)
+
+    def schedule_sync(self):
+        adapter = self.data_source.adapter
+        adapter.sync_workspaces(self.origin_id)
 
     class Meta:
         unique_together = [('data_source', 'origin_id')]
