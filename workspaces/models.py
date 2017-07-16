@@ -149,7 +149,7 @@ class Workspace(TimestampedModel):
 
     data_source = models.ForeignKey(DataSource, db_index=True,
                                     related_name='workspaces')
-    projects = models.ManyToManyField(Project, db_index=True,
+    projects = models.ManyToManyField(Project, db_index=True, blank=True,
                                       related_name='workspaces')
     name = models.CharField(max_length=100)
     description = models.TextField(null=True, blank=True)
