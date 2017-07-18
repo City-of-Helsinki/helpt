@@ -183,7 +183,7 @@ class Workspace(TimestampedModel):
 
     def schedule_task_sync(self, task_origin_id):
         adapter = self.data_source.adapter
-        adapter.sync_single_task(self, task_origin_id)
+        adapter.sync_tasks(self, task_origin_id)
 
     def schedule_sync(self):
         adapter = self.data_source.adapter
