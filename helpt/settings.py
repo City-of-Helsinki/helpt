@@ -181,6 +181,7 @@ REST_FRAMEWORK = {
 
 DYNAMIC_REST = {
     'ENABLE_LINKS': False,
+    'ENABLE_BULK_UPDATE': False,
 }
 
 # local_settings.py can be used to override environment-specific settings
