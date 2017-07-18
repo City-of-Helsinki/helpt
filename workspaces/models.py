@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
+from django.utils import timezone
 
 from projects.models import Project
 from projects.models.utils import TimestampedModel
@@ -190,6 +191,7 @@ class Workspace(TimestampedModel):
 
     class Meta:
         unique_together = [('data_source', 'origin_id')]
+        ordering = ('id',)
         get_latest_by = 'created_at'
 
 
@@ -219,7 +221,7 @@ class Task(models.Model):
     state = models.CharField(max_length=10, choices=STATES, db_index=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField()
+    updated_at = models.DateTimeField(default=timezone.now)
     closed_at = models.DateTimeField(null=True, blank=True)
 
     assigned_users = models.ManyToManyField(DataSourceUser,

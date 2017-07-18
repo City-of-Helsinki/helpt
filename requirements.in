@@ -3,6 +3,7 @@ django-helusers
 django-allauth
 pytest
 pytest-django
+pytest-cov
 requests
 requests_cache
 djangorestframework
