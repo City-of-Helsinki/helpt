@@ -35,6 +35,8 @@ class Adapter(object):
                 created = True
             else:
                 created = False
+            if not obj.task_state and workspace.default_list_task_state:
+                obj.task_state = workspace.default_list_task_state
             obj.save()
             if created and 'state' in lst:
                 obj.set_state(lst['state'])

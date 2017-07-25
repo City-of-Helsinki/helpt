@@ -8,6 +8,16 @@ from projects.models.utils import TimestampedModel
 from .adapters import GitHubAdapter, TrelloAdapter
 
 
+class TaskState:
+    OPEN = 'open'
+    CLOSED = 'closed'
+
+    choices = (
+        (OPEN, _('open')),
+        (CLOSED, _('closed')),
+    )
+
+
 class DataSource(models.Model):
     TYPES = (
         ('github', 'GitHub'),
@@ -158,6 +168,9 @@ class Workspace(TimestampedModel):
     state = models.CharField(max_length=10, choices=STATES, db_index=True,
                              default=STATE_OPEN)
     sync = models.BooleanField(default=False)
+    default_list_task_state = models.CharField(help_text=_('The default task state for new lists'),
+                                               max_length=20, choices=TaskState.choices,
+                                               null=True, blank=True)
 
     objects = WorkspaceQuerySet.as_manager()
 
@@ -204,13 +217,8 @@ class TaskQuerySet(models.QuerySet):
 
 
 class Task(models.Model):
-    STATE_OPEN = 'open'
-    STATE_CLOSED = 'closed'
-
-    STATES = (
-        (STATE_OPEN, _('open')),
-        (STATE_CLOSED, _('closed'))
-    )
+    STATE_OPEN = TaskState.OPEN
+    STATE_CLOSED = TaskState.CLOSED
 
     name = models.CharField(max_length=200)
     workspace = models.ForeignKey(Workspace, db_index=True, related_name='tasks')
@@ -218,7 +226,7 @@ class Task(models.Model):
     # Trello uses floating point positions
     position = models.FloatField(null=True)
     origin_id = models.CharField(max_length=100, db_index=True)
-    state = models.CharField(max_length=10, choices=STATES, db_index=True)
+    state = models.CharField(max_length=10, choices=TaskState.choices, db_index=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(default=timezone.now)
@@ -242,7 +250,7 @@ class Task(models.Model):
         if new_state == self.state:
             return
 
-        assert new_state in [x[0] for x in self.STATES]
+        assert new_state in [x[0] for x in TaskState.choices]
         self.state = new_state
         if save:
             self.save(update_fields=['state'])
@@ -292,7 +300,7 @@ class WorkspaceList(TimestampedModel):
 
     # If being on this list makes tasks open or closed, task_state
     # is set accordingly.
-    task_state = models.CharField(max_length=10, choices=Task.STATES, null=True)
+    task_state = models.CharField(max_length=10, choices=TaskState.choices, null=True)
 
     objects = WorkspaceListQuerySet.as_manager()
 
