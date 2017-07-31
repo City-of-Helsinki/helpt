@@ -1,0 +1,15 @@
+language: python
+python:
+  - '3.6'
+  - 'nightly'
+
+cache: pip
+
+services:
+  - postgresql
+
+install: 'pip install codecov -r requirements.txt'
+
+script: py.test --cov .
+
+after_success: codecov
