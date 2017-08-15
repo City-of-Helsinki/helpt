@@ -2,18 +2,14 @@ import requests
 import logging
 import json
 
+from django.db import transaction
 from django.apps import apps
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.conf.urls import url
-from django.dispatch import receiver
-
-from allauth.account.signals import user_signed_up
-from allauth.socialaccount.signals import social_account_added
 
 from .base import Adapter
-from .sync import ModelSyncher
 
 
 logger = logging.getLogger(__name__)
@@ -32,146 +28,124 @@ class GitHubAdapter(Adapter):
         objs = []
         while True:
             resp = requests.get(url, headers=headers, params=kwargs)
-            assert resp.status_code == 200
-            objs += resp.json()
+            assert resp.status_code == 200, "GitHub API error: %s" % resp.json()['message']
+            data = resp.json()
             next_link = resp.links.get('next')
+            if isinstance(data, list):
+                objs += data
+            else:
+                assert not next_link
+                return data
             if not next_link:
                 break
             url = next_link['url']
 
         return objs
 
-    def sync_workspaces(self):
-        pass
+    def api_post(self, path, **kwargs):
+        if self.data_source.token:
+            headers = {'Authorization': 'token {}'.format(self.data_source.token)}
+        else:
+            headers = None
+        url = self.API_BASE + path
+        resp = requests.post(url, headers=headers, **kwargs)
+        data = resp.json()
+        assert resp.status_code == 201, "GitHub API error: %s" % data['message']
+        return data
 
-    def _create_user(self, workspace, assignee):
-        logger.debug("new user: {}".format(assignee['id']))
-        ds = workspace.data_source
-        m = apps.get_model(app_label='workspaces', model_name='DataSourceUser')
-        return m.objects.create(origin_id=assignee['id'],
-                                data_source=ds,
-                                username=assignee['login'])
+    def api_delete(self, path, **kwargs):
+        if self.data_source.token:
+            headers = {'Authorization': 'token {}'.format(self.data_source.token)}
+        else:
+            headers = None
+        url = self.API_BASE + path
+        resp = requests.delete(url, headers=headers, **kwargs)
+        assert resp.status_code in (200, 204), "GitHub API error: %s" % resp.json()['message']
 
-    def update_task(self, obj, task, users_by_id):
+    def _import_repo(self, data):
+        ret = dict(name=data['name'], description=data['description'], origin_id=str(data['id']),
+                   state='open')
+        return ret
+
+    def _import_issue(self, data):
+        assert data['state'] in ('open', 'closed')
+        return dict(
+            origin_id=str(data['number']),
+            state=data['state'],
+            assigned_users=[str(u['id']) for u in data['assignees']],
+            created_at=data['created_at'],
+            updated_at=data['updated_at'],
+            closed_at=data['closed_at'],
+            name=data['title'],
+        )
+
+    def _import_user(self, data):
+        return dict(username=data['login'], origin_id=str(data['id']))
+
+    def sync_workspaces(self, origin_id=None):
+        if not origin_id:
+            organization = self.data_source.organization
+            data = self.api_get('orgs/%s/repos' % organization)
+            workspaces = [self._import_repo(repo) for repo in data]
+            self._update_workspaces(workspaces)
+        else:
+            data = self.api_get('repos/%s' % origin_id)
+            self._update_workspaces(self._import_repo(data))
+
+    def sync_tasks(self, workspace, origin_id=None):
         """
-        Update a Task object with data from Github issue
-
-        :param obj: Task object that should be updated
-        :param task: Github issue structure, as used in Github APIs
-        :param users_by_id: List of local users for task assignment
-        """
-        obj.name = task['title']
-        for f in ['created_at', 'updated_at', 'closed_at']:
-            setattr(obj, f, task[f])
-
-        obj.set_state(task['state'], save=False)
-
-        obj.save()
-
-        assignees = task['assignees']
-        new_assignees = set()
-        for assignee in assignees:
-            user = users_by_id.get(assignee['id'])
-            if not user:
-                # We have an unseen user for this data source
-                user = self._create_user(obj.workspace, assignee)
-                users_by_id[user.origin_id] = user
-            new_assignees.add(user)
-        old_assignees = set([x.user for x in obj.assignments.all()])
-
-        for user in new_assignees - old_assignees:
-            obj.assignments.create(user=user)
-        remove_assignees = old_assignees - new_assignees
-        if remove_assignees:
-            obj.assignments.filter(user__in=remove_assignees).delete()
-
-        logger.debug('#{}: [{}] {}'.format(task['number'], task['state'], task['title']))
-
-    def _get_users_by_id(self):
-        data_source_users = self.data_source.data_source_users.all()
-        return {int(u.origin_id): u for u in data_source_users}
-
-    def sync_tasks(self, workspace):
-        """
-        Synchronize tasks between given workspace and its GitHub source
+        Synchronize tasks between given workspace and its Trello source
         :param workspace: Workspace to be synced
+        :param origin_id: Task id if only one task is to be synced
         """
 
-        def close_task(task):
-            logger.debug("Marking %s closed" % task)
-            task.set_state('closed')
+        repo_part = '{}/{}'.format(self.data_source.organization, workspace.name)
+        if not origin_id:
+            data = self.api_get('repos/{}/issues'.format(repo_part), state='all')
+        else:
+            card = self.api_get('repos/{}/issues/{}'.format(repo_part, origin_id))
+            data = [card]
 
-        data = self.api_get('repos/{}/issues'.format(workspace.origin_id))
+        tasks = [self._import_issue(card) for card in data]
+        all_users = {}
+        for issue in data:
+            for user in issue['assignees']:
+                if user['id'] in all_users:
+                    continue
+                all_users[user['id']] = user
 
-        users_by_id = self._get_users_by_id()
+        users = [self._import_user(user) for user in all_users.values()]
+        self.save_users(users)
 
-        Task = workspace.tasks.model
+        if not origin_id:
+            self._update_tasks(workspace, tasks)
+        else:
+            self._update_tasks(workspace, tasks[0])
 
-        syncher = ModelSyncher(workspace.tasks.open(),
-                               lambda task: int(task.origin_id),
-                               delete_func=close_task)
+    def register_webhook(self, callback_url):
+        config = dict(url=callback_url, content_type='json')
+        data = dict(name='web', events=['issues', 'repository'], active=True, config=config)
+        ret = self.api_post('orgs/{}/hooks'.format(self.data_source.organization), data=json.dumps(data))
+        self.save_webhook(dict(origin_id=str(ret['id'])))
 
-        for task in data:
-            obj = syncher.get(task['number'])
-            if not obj:
-                obj = Task(workspace=workspace, origin_id=task['number'])
-
-            syncher.mark(obj)
-            self.update_task(obj, task, users_by_id)
-
-        syncher.finish()
-
-
-def connect_user_to_datasource(sociallogin):
-    github_uid = sociallogin.uid
-
-    dsu = apps.get_model(app_label='workspaces', model_name='DataSourceUser')
-    count = dsu.objects.filter(data_source__type="github")\
-                       .filter(origin_id=github_uid)\
-                       .update(user=sociallogin.user)
-
-    if count == 0:
-        # DataSourceUser did not exist yet, very proactive user logged in
-        dsu.objects.create(origin_id=github_uid, user=sociallogin.user,
-                           username=sociallogin.extra_data['login'])
+    def remove_webhook(self, origin_id):
+        with transaction.atomic():
+            self.delete_webhook(origin_id)
+            self.api_delete('orgs/{}/hooks/{}'.format(self.data_source.organization, origin_id))
 
 
-# handles the case where user signs up for the first time using social login
-@receiver(user_signed_up)
-def handle_social_signup(request, user, **kwargs):
-    """
-    Connects any GitHub socialaccounts for new users to corresponding
-    existing DataSourceAccount's or create a new DataSourceAccount if it is
-    still missing.
+def handle_github_event(event_type, event):
+    GitHubDataSource = apps.get_model(app_label='workspaces', model_name='GitHubDataSource')
+    ds = GitHubDataSource.objects.get(organization=event['organization']['login'])
 
-    :param request: Django request
-    :param user: Django user
-    """
-    # Local user signup, no social account to connect
-    return
-    if len(user.socialaccount_set.all()) == 0:
-        return
+    if event_type == 'issues':
+        ws = ds.workspaces.get(origin_id=event['repository']['id'])
+        issue_id = str(event['issue']['number'])
+        ws.schedule_task_sync(issue_id)
+    elif event_type == 'repository':
+        ds.schedule_workspace_sync()
 
-    # Exactly one should exist on new login, otherwise it cannot be a new login
-    assert(len(user.socialaccount_set.all()) == 1)
-    # FIXME: this will fail with more than one social service
-    sociallogin = user.socialaccount_set.get(provider='github')
-
-    connect_user_to_datasource(sociallogin)
-
-
-# handles the case where user connects additional social logins
-@receiver(social_account_added)
-def handle_social_connection(request, sociallogin, **kwargs):
-    """
-    Connect any newly connected GitHub accounts to corresponding
-    DataSourceAccount's or create a new DataSourceAccount if it
-    is still missing.
-    """
-    if sociallogin.account.provider != 'github':
-        return
-
-    connect_user_to_datasource(sociallogin.account)
+    return HttpResponse('OK')
 
 
 @csrf_exempt
@@ -188,7 +162,7 @@ def receive_github_hook(request):
     if event_type == "ping":
         return HttpResponse("pong")
 
-    if event_type != "issues":
+    if event_type not in ("issues", "repository"):
         return HttpResponseBadRequest("Event type is not \"issues\". Bad hook configuration?")
 
     try:
@@ -199,52 +173,14 @@ def receive_github_hook(request):
     except UnicodeError:
         return HttpResponseBadRequest("Invalid character encoding, expecting UTF-8")
 
-    # Task management only cares about GitHub issues
-    if 'issue' in event:
-        issue_identifier = event['issue']['number']
-    else:
-        return HttpResponseBadRequest("Issue structure missing. Bad hook configuration?")
-
-    if 'repository' in event:
-        event_origin = event['repository']['full_name']
-    else:
-        return HttpResponseBadRequest("Repository information missing, should be included with issue")
-
-    # Work around circular imports
-    Workspace = apps.get_model(app_label='workspaces', model_name='Workspace')
-    GitHubDataSource = apps.get_model(app_label='workspaces', model_name='GitHubDataSource')
-    Project = apps.get_model(app_label='workspaces', model_name='Project')
-
     try:
-        workspace = Workspace.objects.get(origin_id=event_origin)
-    except Workspace.DoesNotExist:
-        # New workspaces get 'Unassigned' project and unauthenticated GitHub
-        project, _ = Project.objects.get_or_create(name='Unassigned')
-        data_source, _ = GitHubDataSource.objects.get_or_create(name="GitHub")
-
-        name = event['repository']['name']
-        description = event['repository']['description']
-        workspace = Workspace.objects.create(origin_id=event_origin,
-                                             name=name,
-                                             description=description,
-                                             data_source=data_source,
-                                             project=project)
-
-    # Tasks must be fetched through workspaces, as their identifiers
-    # are only unique within workspace
-    Task = workspace.tasks.model
-    try:
-        task = workspace.tasks.get(origin_id=issue_identifier)
-    except Task.DoesNotExist:
-        task = Task(workspace=workspace, origin_id=issue_identifier)
-
-    adapter = workspace.data_source.adapter
-
-    users_by_id = adapter._get_users_by_id()
-
-    adapter.update_task(task, event['issue'], users_by_id)
-
-    return HttpResponse("processed, acted on")
+        resp = handle_github_event(event_type, event)
+    except Exception as e:
+        logger.exception("GitHub event handling failed")
+        # In case of internal error, still reply with HTTP 200 so that
+        # GitHub is happy. We're logging the exception to Sentry anyway.
+        return HttpResponse("Server error")
+    return resp
 
 
 urls = [url(r'^$', receive_github_hook)]

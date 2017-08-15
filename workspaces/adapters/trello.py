@@ -1,6 +1,7 @@
 import requests
 import logging
 import json
+from django.db import transaction
 from django.views.decorators.http import require_http_methods
 from django.http import HttpResponse, HttpResponseBadRequest
 from django.views.decorators.csrf import csrf_exempt
@@ -54,6 +55,7 @@ class TrelloAdapter(Adapter):
             raise TrelloAPIException("POST failed with %d: \"%s\"" % (
                 resp.status_code, resp.content.decode('utf8')
             ))
+        return resp.json()
 
     def _import_list(self, lst):
         data = dict(name=lst['name'], origin_id=lst['id'], position=lst['pos'])
@@ -105,20 +107,17 @@ class TrelloAdapter(Adapter):
             idModel=workspace.origin_id,
             callbackURL=callback_url
         )
-        self.api_post('tokens/%s/webhooks/' % self.data_source.token, data=json.dumps(data))
+        ret = self.api_post('tokens/%s/webhooks/' % self.data_source.token, data=json.dumps(data))
 
     def clear_webhooks(self):
         data = self.api_get('tokens/%s/webhooks' % self.data_source.token)
         for hook in data:
             self.api_delete('tokens/%s/webhooks/%s' % (self.data_source.token, hook['id']))
 
-    def _create_user(self, workspace, assignee):
-        logger.debug("new user: {}".format(assignee['id']))
-        ds = workspace.data_source
-        m = apps.get_model(app_label='workspaces', model_name='DataSourceUser')
-        return m.objects.create(origin_id=assignee['id'],
-                                data_source=ds,
-                                username=assignee['login'])
+    def remove_webhook(self, origin_id):
+        with transaction.atomic():
+            self.delete_webhook(origin_id)
+            self.api_delete('tokens/{}/webhooks/{}'.format(self.data_source.token, origin_id))
 
     def sync_tasks(self, workspace, origin_id=None):
         """

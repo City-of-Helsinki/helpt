@@ -64,7 +64,7 @@ class Adapter(object):
         # Get access to model through trickery because otherwise
         # there would be a circular import.
         Workspace = self.data_source.workspaces.model
-        syncher = ModelSyncher(self.data_source.workspaces.open(),
+        syncher = ModelSyncher(self.data_source.workspaces.all(),
                                lambda ws: ws.origin_id,
                                delete_func=close_workspace,
                                skip_delete=skip_delete)
@@ -79,12 +79,9 @@ class Adapter(object):
                     continue
                 setattr(obj, attr_name, value)
             if not obj.id:
-                logger.debug('Creating new workspace: %s' % obj)
-                created = True
-            else:
-                created = False
+                logger.info('Creating new workspace: %s' % obj)
             obj.save()
-            if created and 'state' in ws:
+            if 'state' in ws:
                 obj.set_state(ws['state'])
             self._update_workspace_lists(obj, ws_lists)
             syncher.mark(obj)
@@ -192,3 +189,9 @@ class Adapter(object):
             syncher.mark(obj)
 
         syncher.finish()
+
+    def save_webhook(self, webhook):
+        self.data_source.webhooks.create(origin_id=webhook['origin_id'])
+
+    def delete_webhook(self, origin_id):
+        self.data_source.webhooks.get(origin_id=origin_id).delete()

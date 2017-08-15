@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import GitHubDataSource, Workspace, Task, DataSourceUser, TaskAssignment
+from .models import GitHubDataSource, Workspace, WorkspaceList, Task, DataSourceUser, TaskAssignment
 
 
 @admin.register(GitHubDataSource)
@@ -14,6 +14,11 @@ class TaskAdmin(admin.ModelAdmin):
 
 @admin.register(Workspace)
 class WorkspaceAdmin(admin.ModelAdmin):
+    pass
+
+
+@admin.register(WorkspaceList)
+class WorkspaceList(admin.ModelAdmin):
     pass
 
 

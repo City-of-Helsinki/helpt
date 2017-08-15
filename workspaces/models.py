@@ -54,6 +54,10 @@ class DataSource(models.Model):
         adapter = self.adapter
         adapter.sync_data_source()
 
+    def schedule_workspace_sync(self):
+        # Convert to async later
+        self.sync_workspaces()
+
 
 class GitHubDataSource(DataSource):
     """
@@ -64,6 +68,7 @@ class GitHubDataSource(DataSource):
     client_id = models.CharField(max_length=100, blank=True, null=True)
     client_secret = models.CharField(max_length=100, blank=True, null=True)
     token = models.CharField(max_length=100, blank=True, null=True)
+    organization = models.CharField(_('GitHub organization ID'), max_length=100)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -103,8 +108,7 @@ class DataSourceUser(models.Model):
 
     data_source = models.ForeignKey(DataSource, db_index=True,
                                     related_name='data_source_users')
-    # Link to local user may be null. It is the responsibility of the
-    # adapter to fill this in when the user first logs in here.
+    # Link to local user may be null. It may be configured in the admin UI.
     user = models.ForeignKey(settings.AUTH_USER_MODEL, db_index=True,
                              related_name='data_source_users',
                              on_delete=models.SET_NULL,
@@ -256,7 +260,7 @@ class Task(models.Model):
             self.save(update_fields=['state'])
 
     class Meta:
-        ordering = ['workspace', 'list', 'position', 'origin_id']
+        ordering = ['workspace', 'list', 'position', '-created_at', '-origin_id']
         unique_together = [('workspace', 'origin_id')]
         get_latest_by = 'created_at'
 
@@ -320,3 +324,14 @@ class WorkspaceList(TimestampedModel):
         self.state = new_state
         if save:
             self.save(update_fields=['state'])
+
+
+class DataSourceWebhook(models.Model):
+    data_source = models.ForeignKey(DataSource, related_name='webhooks')
+    origin_id = models.CharField(max_length=100, db_index=True)
+
+    def __str__(self):
+        return 'Webhook {} for {}'.format(self.origin_id, self.data_source)
+
+    class Meta:
+        unique_together = [('data_source', 'origin_id')]
