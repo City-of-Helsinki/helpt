@@ -1,5 +1,6 @@
 from dynamic_rest import serializers, viewsets
 from rest_framework import serializers as drf_serializers
+from django.contrib.auth.models import Group
 from .models import User
 
 
@@ -20,11 +21,12 @@ def register_view(klass, name=None, base_name=None):
 
 class UserSerializer(serializers.DynamicModelSerializer):
     id = drf_serializers.UUIDField(source='uuid')
+    groups = serializers.DynamicRelationField('GroupSerializer', many=True)
 
     class Meta:
         model = User
         name = 'user'
-        fields = ['id', 'department_name', 'email', 'first_name', 'last_name', 'username']
+        fields = ['id', 'department_name', 'email', 'first_name', 'last_name', 'username', 'groups']
         plural_name = 'user'
 
 
@@ -39,3 +41,17 @@ class UserViewSet(viewsets.DynamicModelViewSet):
         if 'current' in filters:
             queryset = User.objects.filter(pk=self.request.user.pk)
         return queryset
+
+
+class GroupSerializer(serializers.DynamicModelSerializer):
+    class Meta:
+        model = Group
+        name = 'group'
+        fields = ['id', 'name']
+        plural_name = 'group'
+
+
+@register_view
+class GroupViewSet(viewsets.DynamicModelViewSet):
+    queryset = Group.objects.all()
+    serializer_class = GroupSerializer
