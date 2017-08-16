@@ -24,6 +24,7 @@ from workspaces.adapters.trello import urls as trello_hook_cb_urls
 from workspaces.api import all_views as workspace_views
 from users.api import all_views as user_views
 from hours.api import all_views as hour_views
+from projects.api import all_views as project_views
 
 router = DefaultRouter()
 
@@ -32,6 +33,8 @@ for view in workspace_views:
 for view in user_views:
     router.register(view['name'], view['class'], base_name=view.get('base_name'))
 for view in hour_views:
+    router.register(view['name'], view['class'], base_name=view.get('base_name'))
+for view in project_views:
     router.register(view['name'], view['class'], base_name=view.get('base_name'))
 
 

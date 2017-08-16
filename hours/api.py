@@ -6,6 +6,7 @@ from rest_framework import permissions
 from rest_framework.exceptions import ValidationError
 from .models import Entry
 from users.api import UserSerializer
+from workspaces.api import TaskSerializer
 
 
 all_views = []
@@ -65,6 +66,7 @@ class EntryPermission(permissions.BasePermission):
 
 class EntrySerializer(serializers.DynamicModelSerializer):
     user = UUIDBasedRelationField(UserSerializer)
+    task = serializers.DynamicRelationField(TaskSerializer)
 
     class Meta:
         model = Entry
