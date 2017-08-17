@@ -1,5 +1,4 @@
-[![Build status](https://travis-ci.org/City-of-Helsinki/helpt.svg)](https://travis-ci.org/City-of-Helsinki/helpt)
-
+[![Build status](https://travis-ci.org/City-of-Helsinki/helpt.svg?branch=master)](https://travis-ci.org/City-of-Helsinki/helpt)
 [![codecov](https://codecov.io/gh/City-of-Helsinki/helpt/branch/master/graph/badge.svg)](https://codecov.io/gh/City-of-Helsinki/helpt)
 
 Installation
