@@ -20,7 +20,8 @@ class Adapter(object):
         WorkspaceList = workspace.lists.model
         syncher = ModelSyncher(workspace.lists.all(),
                                lambda lst: lst.origin_id,
-                               delete_func=close_list)
+                               delete_func=close_list,
+                               delete_limit=None)
 
         for lst in lists:
             obj = syncher.get(lst['origin_id'])
@@ -67,7 +68,8 @@ class Adapter(object):
         syncher = ModelSyncher(self.data_source.workspaces.all(),
                                lambda ws: ws.origin_id,
                                delete_func=close_workspace,
-                               skip_delete=skip_delete)
+                               skip_delete=skip_delete,
+                               delete_limit=None)
 
         for ws in workspaces:
             obj = syncher.get(ws['origin_id'])
@@ -109,7 +111,8 @@ class Adapter(object):
         syncher = ModelSyncher(workspace.tasks.all(),
                                lambda task: task.origin_id,
                                delete_func=close_task,
-                               skip_delete=skip_delete)
+                               skip_delete=skip_delete,
+                               delete_limit=None)
         for task in tasks:
             task = task.copy()
             task_id = task.pop('origin_id')
