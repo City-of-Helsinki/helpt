@@ -260,7 +260,7 @@ class Task(models.Model):
             self.save(update_fields=['state'])
 
     class Meta:
-        ordering = ['workspace', 'list', 'position', '-created_at', '-origin_id']
+        ordering = ['-updated_at', 'workspace', 'list', 'position', '-created_at', '-origin_id']
         unique_together = [('workspace', 'origin_id')]
         get_latest_by = 'created_at'
 
