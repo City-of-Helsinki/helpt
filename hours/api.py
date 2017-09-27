@@ -1,5 +1,5 @@
 from django.core.exceptions import (
-    PermissionDenied, ValidationError as DjangoValidationError
+    ValidationError as DjangoValidationError
 )
 from dynamic_rest import serializers, viewsets, fields
 from rest_framework import permissions
@@ -102,5 +102,6 @@ class EntryViewSet(viewsets.DynamicModelViewSet):
 
     def update(self, *args, **kwargs):
         return super().update(*args, **kwargs)
+
 
 register_view(EntryViewSet, name='entry')
