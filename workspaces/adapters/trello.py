@@ -107,7 +107,7 @@ class TrelloAdapter(Adapter):
             idModel=workspace.origin_id,
             callbackURL=callback_url
         )
-        ret = self.api_post('tokens/%s/webhooks/' % self.data_source.token, data=json.dumps(data))
+        self.api_post('tokens/%s/webhooks/' % self.data_source.token, data=json.dumps(data))
 
     def clear_webhooks(self):
         data = self.api_get('tokens/%s/webhooks' % self.data_source.token)
