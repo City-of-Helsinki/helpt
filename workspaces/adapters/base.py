@@ -1,3 +1,4 @@
+import datetime
 import logging
 
 from .sync import ModelSyncher
@@ -6,9 +7,45 @@ from .sync import ModelSyncher
 logger = logging.getLogger(__name__)
 
 
+def isclose(a, b, rel_tol=1e-09, abs_tol=0.0):
+    return abs(a - b) <= max(rel_tol * max(abs(a), abs(b)), abs_tol)
+
+
 class Adapter(object):
     def __init__(self, data_source):
         self.data_source = data_source
+
+    def _set_field(self, obj, field_name, val):
+        assert hasattr(obj, field_name)
+        obj_val = getattr(obj, field_name)
+        if isinstance(obj_val, datetime.datetime) and isinstance(val, str):
+            obj_val = obj_val.isoformat()
+            if obj_val.endswith('000+00:00'):
+                obj_val = obj_val.replace('000+00:00', 'Z')
+        elif isinstance(obj_val, float) and isinstance(val, float):
+            # If floats are close enough, treat them as the same
+            if isclose(obj_val, val):
+                val = obj_val
+        if obj_val == val:
+            return
+        setattr(obj, field_name, val)
+        obj._changed_fields.append(field_name)
+
+    def _update_fields(self, obj, data, skip_fields=[]):
+        if not hasattr(obj, '_changed_fields'):
+            obj._changed_fields = []
+        obj_fields = list(obj._meta.fields)
+        for d in skip_fields:
+            for f in obj_fields:
+                if f.name == d:
+                    obj_fields.remove(f)
+                    break
+
+        for field in obj_fields:
+            field_name = field.name
+            if field_name not in data:
+                continue
+            self._set_field(obj, field_name, data[field_name])
 
     def _update_workspace_lists(self, workspace, lists):
         def close_list(lst):
@@ -92,6 +129,8 @@ class Adapter(object):
 
     def _update_tasks(self, workspace, task_or_tasks):
         def close_task(task):
+            if task.state == 'closed':
+                return
             logger.debug("Marking %s closed" % task)
             task.set_state('closed')
 
@@ -128,12 +167,13 @@ class Adapter(object):
             list_id = task.pop('list_origin_id', None)
             obj.list = lists_by_id.get(list_id)
 
-            for attr_name, value in task.items():
-                setattr(obj, attr_name, value)
+            self._update_fields(obj, task)
 
             if obj.list and obj.list.task_state:
                 task_state = obj.list.task_state
 
+            if obj.state != task_state:
+                obj._changed_fields.append('state')
             obj.set_state(task_state, save=False)
             obj.save()
 
@@ -146,13 +186,20 @@ class Adapter(object):
                 new_assignees.add(user)
             old_assignees = set([x.user for x in obj.assignments.all()])
 
-            for user in new_assignees - old_assignees:
+            added_assignees = new_assignees - old_assignees
+            for user in added_assignees:
                 obj.assignments.create(user=user)
-            remove_assignees = old_assignees - new_assignees
-            if remove_assignees:
-                obj.assignments.filter(user__in=remove_assignees).delete()
+            removed_assignees = old_assignees - new_assignees
+            if removed_assignees:
+                obj.assignments.filter(user__in=removed_assignees).delete()
 
-            logger.debug('#{}: [{}] {}'.format(task_id, obj.state, obj.name))
+            if added_assignees or removed_assignees:
+                obj._changed_fields.append('assignments')
+
+            if obj._changed_fields:
+                logger.info('#{}: [{}] {} (changed: {})'.format(
+                    task_id, obj.state, obj.name, ', '.join(obj._changed_fields)
+                ))
 
         syncher.finish()
 
