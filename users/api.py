@@ -1,7 +1,9 @@
 from dynamic_rest import serializers, viewsets
 from rest_framework import serializers as drf_serializers
 from django.contrib.auth.models import Group
-from .models import User
+from django.db.models import Q
+
+from .models import User, Organization
 
 
 all_views = []
@@ -39,7 +41,11 @@ class UserViewSet(viewsets.DynamicModelViewSet):
         queryset = super(UserViewSet, self).get_queryset()
         filters = self.request.query_params
         if 'current' in filters:
-            queryset = User.objects.filter(pk=self.request.user.pk)
+            queryset = queryset.filter(pk=self.request.user.pk)
+        if 'autosuggest' in filters:
+            value = filters['autosuggest'].lower()
+            query = Q(first_name__istartswith=value) | Q(last_name__istartswith=value) | Q(email__istartswith=value)
+            queryset = queryset.filter(query)
         return queryset
 
 
@@ -55,3 +61,24 @@ class GroupSerializer(serializers.DynamicModelSerializer):
 class GroupViewSet(viewsets.DynamicModelViewSet):
     queryset = Group.objects.all()
     serializer_class = GroupSerializer
+
+
+class OrganizationSerializer(serializers.DynamicModelSerializer):
+    class Meta:
+        model = Organization
+        name = 'organization'
+        fields = ['id', 'name']
+        plural_name = 'organization'
+
+
+@register_view
+class OrganizationViewSet(viewsets.DynamicModelViewSet):
+    queryset = Organization.objects.all()
+    serializer_class = OrganizationSerializer
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        filters = self.request.query_params
+        if 'autosuggest' in filters:
+            queryset = Organization.objects.filter(name__istartswith=filters['autosuggest'].lower())
+        return queryset
