@@ -225,6 +225,8 @@ class Task(models.Model):
     STATE_CLOSED = TaskState.CLOSED
 
     name = models.CharField(max_length=200)
+    project = models.ForeignKey(Project, db_index=True, null=True, blank=True,
+                                related_name='tasks', on_delete=models.SET_NULL)
     workspace = models.ForeignKey(Workspace, db_index=True, related_name='tasks')
     list = models.ForeignKey('WorkspaceList', null=True, related_name='tasks')
     # Trello uses floating point positions

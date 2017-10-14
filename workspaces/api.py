@@ -73,6 +73,7 @@ class AssignedUserSerializer(serializers.DynamicModelSerializer):
 
 class TaskSerializer(serializers.DynamicModelSerializer):
     workspace = serializers.DynamicRelationField(WorkspaceSerializer)
+    project = serializers.DynamicRelationField(ProjectSerializer)
     assigned_users = serializers.DynamicRelationField(AssignedUserSerializer, many=True)
 
     def to_representation(self, instance):
@@ -89,7 +90,7 @@ class TaskSerializer(serializers.DynamicModelSerializer):
         model = Task
         fields = [
             'id', 'name', 'workspace', 'origin_id', 'state', 'created_at', 'updated_at', 'closed_at',
-            'assigned_users'
+            'assigned_users', 'project'
         ]
         name = 'task'
         plural_name = 'task'

@@ -167,6 +167,11 @@ class Adapter(object):
             list_id = task.pop('list_origin_id', None)
             obj.list = lists_by_id.get(list_id)
 
+            # Inherit project setting from parent if not provided here
+            if 'project' not in task:
+                if workspace.projects.count() == 1:
+                    task['project'] = workspace.projects.first()
+
             self._update_fields(obj, task)
 
             if obj.list and obj.list.task_state:
