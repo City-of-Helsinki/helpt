@@ -44,7 +44,7 @@ class WorkspaceSerializer(serializers.DynamicModelSerializer):
         model = Workspace
         fields = [
             'id', 'data_source', 'projects', 'name', 'description', 'origin_id',
-            'state'
+            'state', 'url'
         ]
         name = 'workspace'
         plural_name = 'workspace'

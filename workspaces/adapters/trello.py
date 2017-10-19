@@ -67,7 +67,7 @@ class TrelloAdapter(Adapter):
         return data
 
     def _import_board(self, board):
-        data = dict(name=board['name'], description=None, origin_id=board['id'])
+        data = dict(name=board['name'], description=None, origin_id=board['id'], url=board['url'])
         data['lists'] = [self._import_list(l) for l in board['lists']]
         return data
 

@@ -175,6 +175,7 @@ class Workspace(TimestampedModel):
     default_list_task_state = models.CharField(help_text=_('The default task state for new lists'),
                                                max_length=20, choices=TaskState.choices,
                                                null=True, blank=True)
+    url = models.URLField(null=True, help_text=_('The external URL which allows the user to examine the workspace'))
 
     objects = WorkspaceQuerySet.as_manager()
 

@@ -64,7 +64,7 @@ class GitHubAdapter(Adapter):
 
     def _import_repo(self, data):
         ret = dict(name=data['name'], description=data['description'], origin_id=str(data['id']),
-                   state='open')
+                   state='open', url=data['html_url'])
         return ret
 
     def _import_issue(self, data):
