@@ -1,5 +1,6 @@
 import logging
 from dynamic_rest import serializers, viewsets
+from rest_framework import serializers as drf_serializers
 from .models import Task, Workspace, DataSource, DataSourceUser
 from projects.api import ProjectSerializer
 
@@ -39,12 +40,13 @@ class DataSourceViewSet(viewsets.DynamicModelViewSet):
 class WorkspaceSerializer(serializers.DynamicModelSerializer):
     data_source = serializers.DynamicRelationField(DataSourceSerializer)
     projects = serializers.DynamicRelationField(ProjectSerializer, many=True)
+    external_view_url = drf_serializers.URLField(source='get_external_view_url')
 
     class Meta:
         model = Workspace
         fields = [
             'id', 'data_source', 'projects', 'name', 'description', 'origin_id',
-            'state'
+            'state', 'external_view_url'
         ]
         name = 'workspace'
         plural_name = 'workspace'

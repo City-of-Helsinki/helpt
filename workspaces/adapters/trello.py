@@ -150,6 +150,9 @@ class TrelloAdapter(Adapter):
         else:
             self._update_tasks(workspace, tasks[0])
 
+    def get_workspace_view_url(self, workspace):
+        return 'https://trello.com/b/%s' % workspace.origin_id
+
 
 def handle_trello_event(event):
     Workspace = apps.get_model(app_label='workspaces', model_name='Workspace')

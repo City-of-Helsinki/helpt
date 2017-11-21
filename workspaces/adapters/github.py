@@ -133,6 +133,9 @@ class GitHubAdapter(Adapter):
             self.delete_webhook(origin_id)
             self.api_delete('orgs/{}/hooks/{}'.format(self.data_source.organization, origin_id))
 
+    def get_workspace_view_url(self, workspace):
+        return 'https://github.com/%s/%s' % (self.data_source.organization, workspace.name)
+
 
 def handle_github_event(event_type, event):
     GitHubDataSource = apps.get_model(app_label='workspaces', model_name='GitHubDataSource')

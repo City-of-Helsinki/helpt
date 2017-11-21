@@ -209,6 +209,10 @@ class Workspace(TimestampedModel):
         adapter = self.data_source.adapter
         adapter.sync_workspaces(self.origin_id)
 
+    def get_external_view_url(self):
+        adapter = self.data_source.adapter
+        return adapter.get_workspace_view_url(self)
+
     class Meta:
         unique_together = [('data_source', 'origin_id')]
         ordering = ('id',)
