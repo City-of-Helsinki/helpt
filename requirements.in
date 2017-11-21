@@ -10,3 +10,4 @@ djangorestframework
 markdown
 dynamic-rest
 django-cors-middleware
+psycopg2
