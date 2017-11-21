@@ -10,8 +10,9 @@ class Project(models.Model):
 
 
 class ProjectUser(models.Model):
-    project = models.ForeignKey(Project, db_index=True, related_name='users')
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, db_index=True, related_name='projects')
+    project = models.ForeignKey(Project, db_index=True, related_name='users', on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, db_index=True, related_name='projects',
+                             on_delete=models.CASCADE)
 
     def __str__(self):
         return "{} on {}".format(self.user, self.project)

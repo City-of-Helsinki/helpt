@@ -107,13 +107,14 @@ class DataSourceUser(models.Model):
         (STATE_INACTIVE, _('inactive'))
     )
 
-    data_source = models.ForeignKey(DataSource, db_index=True,
-                                    related_name='data_source_users')
+    data_source = models.ForeignKey(
+        DataSource, db_index=True, related_name='data_source_users', on_delete=models.CASCADE
+    )
     # Link to local user may be null. It may be configured in the admin UI.
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, db_index=True,
-                             related_name='data_source_users',
-                             on_delete=models.SET_NULL,
-                             blank=True, null=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, db_index=True, related_name='data_source_users',
+        on_delete=models.SET_NULL, blank=True, null=True
+    )
 
     username = models.CharField(max_length=100, null=True, blank=True, db_index=True)
     origin_id = models.CharField(max_length=100, db_index=True)
@@ -163,8 +164,9 @@ class Workspace(TimestampedModel):
         (STATE_CLOSED, _('closed'))
     )
 
-    data_source = models.ForeignKey(DataSource, db_index=True,
-                                    related_name='workspaces')
+    data_source = models.ForeignKey(
+        DataSource, db_index=True, related_name='workspaces', on_delete=models.PROTECT
+    )
     projects = models.ManyToManyField(Project, db_index=True, blank=True,
                                       related_name='workspaces')
     name = models.CharField(max_length=100)
@@ -228,8 +230,10 @@ class Task(models.Model):
     name = models.CharField(max_length=200)
     project = models.ForeignKey(Project, db_index=True, null=True, blank=True,
                                 related_name='tasks', on_delete=models.SET_NULL)
-    workspace = models.ForeignKey(Workspace, db_index=True, related_name='tasks')
-    list = models.ForeignKey('WorkspaceList', null=True, related_name='tasks')
+    workspace = models.ForeignKey(Workspace, db_index=True, related_name='tasks',
+                                  on_delete=models.CASCADE)
+    list = models.ForeignKey('WorkspaceList', null=True, related_name='tasks',
+                             on_delete=models.SET_NULL)
     # Trello uses floating point positions
     position = models.FloatField(null=True)
     origin_id = models.CharField(max_length=100, db_index=True)
@@ -272,8 +276,9 @@ class Task(models.Model):
 
 class TaskAssignment(models.Model):
     user = models.ForeignKey(DataSourceUser, related_name='task_assignments',
-                             db_index=True)
-    task = models.ForeignKey(Task, related_name='assignments', db_index=True)
+                             db_index=True, on_delete=models.CASCADE)
+    task = models.ForeignKey(Task, related_name='assignments', db_index=True,
+                             on_delete=models.CASCADE)
 
     def __str__(self):
         return "{} assigned to {}".format(self.task, self.user)
@@ -301,8 +306,9 @@ class WorkspaceList(TimestampedModel):
 
     name = models.CharField(max_length=200)
     position = models.FloatField(null=True)
-    workspace = models.ForeignKey(Workspace, db_index=True,
-                                  related_name='lists')
+    workspace = models.ForeignKey(
+        Workspace, db_index=True, related_name='lists', on_delete=models.CASCADE
+    )
     origin_id = models.CharField(max_length=100, db_index=True)
     state = models.CharField(max_length=10, choices=STATES, db_index=True,
                              default=STATE_OPEN)
@@ -332,8 +338,10 @@ class WorkspaceList(TimestampedModel):
 
 
 class DataSourceWebhook(models.Model):
-    data_source = models.ForeignKey(DataSource, related_name='webhooks')
+    data_source = models.ForeignKey(DataSource, related_name='webhooks', on_delete=models.CASCADE)
     origin_id = models.CharField(max_length=100, db_index=True)
+
+    # FIXME: Remove webhook from remote when deleted
 
     def __str__(self):
         return 'Webhook {} for {}'.format(self.origin_id, self.data_source)

@@ -10,9 +10,10 @@ class Entry(models.Model):
         ('deleted', 'deleted'),
     )
     user = models.ForeignKey(settings.AUTH_USER_MODEL, db_index=True,
-                             related_name='entries')
+                             related_name='entries', on_delete=models.CASCADE)
     date = models.DateField(db_index=True)
-    task = models.ForeignKey('workspaces.Task', db_index=True, related_name='entries')
+    task = models.ForeignKey('workspaces.Task', db_index=True, related_name='entries',
+                             on_delete=models.CASCADE)
     minutes = models.PositiveIntegerField()
 
     state = models.CharField(max_length=20, choices=STATES, default='public')

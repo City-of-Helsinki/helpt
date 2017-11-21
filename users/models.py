@@ -13,7 +13,8 @@ class Organization(models.Model):
 
 
 class User(AbstractUser):
-    organization = models.ForeignKey(Organization, db_index=True, null=True, blank=True)
+    organization = models.ForeignKey(Organization, db_index=True, null=True, blank=True,
+                                     on_delete=models.SET_NULL)
 
     class Meta:
         ordering = ('id',)
