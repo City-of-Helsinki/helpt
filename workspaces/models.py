@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 from django.utils.translation import ugettext_lazy as _
 from django.utils import timezone
+from django.contrib.postgres.fields import JSONField
 
 from projects.models import Project
 from projects.models.utils import TimestampedModel
@@ -241,6 +242,8 @@ class Task(models.Model):
     assigned_users = models.ManyToManyField(DataSourceUser,
                                             through='TaskAssignment',
                                             blank=True)
+
+    extra_data = JSONField(null=True, blank=True)
 
     objects = TaskQuerySet.as_manager()
 
